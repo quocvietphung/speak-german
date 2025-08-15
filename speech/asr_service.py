@@ -1,25 +1,34 @@
 import os
 import torch
-from io import BytesIO
 from huggingface_hub import snapshot_download
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 from jiwer import wer, cer
 
 DEFAULT_MODEL = "primeline/whisper-large-v3-turbo-german"
 
-
 # ===============================
-#  Load model 1 lần dùng cho API
+#  Load the Whisper ASR model once for API use
 # ===============================
 def load_model(model_id=DEFAULT_MODEL, model_dir="./models/whisper_de", offline=False):
     """
-    Tải và load model Whisper để nhận dạng giọng nói.
+    Download (if necessary) and load a Whisper model for German speech recognition.
+
+    Args:
+        model_id (str): Hugging Face model ID.
+        model_dir (str): Local directory to store/download the model.
+        offline (bool): If True, will not attempt to download from Hugging Face Hub.
+
+    Returns:
+        pipeline: Hugging Face ASR pipeline ready for inference.
     """
     os.makedirs(model_dir, exist_ok=True)
+
+    # Download model if directory is empty
     if not os.listdir(model_dir):
         print(f"[+] Downloading model to: {model_dir}")
         snapshot_download(repo_id=model_id, local_dir=model_dir, local_dir_use_symlinks=False)
 
+    # Select device and precision
     if torch.cuda.is_available():
         device_idx, torch_dtype = 0, torch.float16
         device_for_model = "cuda"
@@ -37,6 +46,7 @@ def load_model(model_id=DEFAULT_MODEL, model_dir="./models/whisper_de", offline=
         low_cpu_mem_usage=True,
         use_safetensors=True
     )
+
     if device_for_model != "cpu":
         model = model.to(device_for_model)
 
@@ -50,14 +60,21 @@ def load_model(model_id=DEFAULT_MODEL, model_dir="./models/whisper_de", offline=
         device=device_idx
     )
 
-
 # ===============================
-#  Transcribe
+#  Transcription function
 # ===============================
 def transcribe(asr_pipeline, audio_input, language="de", timestamps=False):
     """
-    Nhận diện giọng nói từ audio.
-    - audio_input: đường dẫn file hoặc BytesIO
+    Run speech-to-text transcription.
+
+    Args:
+        asr_pipeline (pipeline): Hugging Face ASR pipeline.
+        audio_input (str or file-like): Path to audio file or BytesIO object.
+        language (str): Language code (default: "de" for German).
+        timestamps (bool): Whether to return timestamps.
+
+    Returns:
+        dict: Transcription result.
     """
     return asr_pipeline(
         audio_input,
@@ -67,13 +84,25 @@ def transcribe(asr_pipeline, audio_input, language="de", timestamps=False):
         return_timestamps=timestamps,
     )
 
-
 # ===============================
-#  Scoring pronunciation
+#  Pronunciation scoring
 # ===============================
 def score_pronunciation(ref_text, hyp_text):
     """
-    So sánh câu chuẩn và câu nhận dạng, tính WER/CER và điểm.
+    Compare reference text and recognized text, calculating WER, CER, and pronunciation score.
+
+    Args:
+        ref_text (str): The reference (correct) sentence.
+        hyp_text (str): The sentence recognized by the ASR model.
+
+    Returns:
+        dict: {
+            "reference": str,
+            "hypothesis": str,
+            "WER": float,
+            "CER": float,
+            "PronunciationScore": float (0–100)
+        }
     """
     w = wer(ref_text.strip(), hyp_text.strip())
     c = cer(ref_text.strip(), hyp_text.strip())
@@ -85,17 +114,16 @@ def score_pronunciation(ref_text, hyp_text):
         "PronunciationScore": round((1 - w) * 100, 2)
     }
 
-
 # ===============================
 #  CLI runner (optional)
 # ===============================
 if __name__ == "__main__":
     import argparse
 
-    ap = argparse.ArgumentParser(description="ASR German + Pronunciation scoring")
-    ap.add_argument("--audio", required=True, help="Path to audio file")
-    ap.add_argument("--ref_text", required=True, help="Reference German sentence")
-    args = ap.parse_args()
+    parser = argparse.ArgumentParser(description="ASR German + Pronunciation scoring")
+    parser.add_argument("--audio", required=True, help="Path to audio file")
+    parser.add_argument("--ref_text", required=True, help="Reference German sentence")
+    args = parser.parse_args()
 
     asr = load_model()
     result = transcribe(asr, args.audio)

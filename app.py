@@ -7,35 +7,41 @@ import soundfile as sf
 import numpy as np
 
 # ===============================
-#  Khởi tạo Flask App
+#  Initialize Flask App
 # ===============================
 app = Flask(__name__)
-CORS(app)  # Cho phép CORS để gọi API từ frontend (Next.js)
+CORS(app)  # Enable CORS for requests from frontend (Next.js)
 
 # ===============================
-#  Load model 1 lần khi server start
+#  Load the ASR model once when server starts
 # ===============================
 print("[+] Initializing ASR model...")
 asr = load_model()
 print("[+] Model loaded and ready!")
 
+
 # ===============================
-#  Route test kết nối
+#  Test route to check API connection
 # ===============================
 @app.route("/api/hello", methods=["GET"])
 def hello_api():
     """
-    Route test nhanh để kiểm tra API hoạt động.
+    Quick test route to verify API is running.
     """
     return jsonify({"message": "Hello from Flask API!"}), 200
 
+
 # ===============================
-#  API Evaluate pronunciation
+#  API to evaluate pronunciation
 # ===============================
 @app.route("/api/evaluate", methods=["POST"])
 def evaluate_api():
     """
-    Nếu không có audio từ client, tạo audio giả từ ref_text để test.
+    Evaluate pronunciation based on a given reference text and audio.
+
+    - If an audio file is uploaded, it will be used directly.
+    - If no audio is provided, synthetic audio will be generated
+      from the reference text using gTTS (for testing only).
     """
     ref_text = request.form.get("ref_text", None)
     if not ref_text:
@@ -43,25 +49,25 @@ def evaluate_api():
 
     try:
         if "audio" in request.files:
-            # 🔹 Dùng file audio người dùng upload
+            # Use the uploaded audio file
             audio_bytes = BytesIO(request.files["audio"].read())
         else:
-            # 🔹 Tạo audio giả từ ref_text để test
+            # Generate synthetic audio from ref_text for testing
             tts = gTTS(text=ref_text, lang="de")
             audio_bytes = BytesIO()
             tts.write_to_fp(audio_bytes)
             audio_bytes.seek(0)
 
-        # Đọc file audio thành numpy array cho Whisper
+        # Read audio file into numpy array for Whisper
         data, samplerate = sf.read(audio_bytes)
         if not isinstance(data, np.ndarray):
             data = np.array(data)
 
-        # Nhận dạng
+        # Run speech-to-text
         result = transcribe(asr, data, language="de")
         hyp_text = result.get("text", "").strip()
 
-        # Tính điểm phát âm
+        # Calculate pronunciation metrics
         metrics = score_pronunciation(ref_text, hyp_text)
 
         return jsonify({
