@@ -1,5 +1,6 @@
 import os
 import torch
+import difflib
 from huggingface_hub import snapshot_download
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 from jiwer import wer, cer
@@ -7,28 +8,19 @@ from jiwer import wer, cer
 DEFAULT_MODEL = "primeline/whisper-large-v3-turbo-german"
 
 # ===============================
-#  Load the Whisper ASR model once for API use
+#  Load Whisper ASR Model
 # ===============================
-def load_model(model_id=DEFAULT_MODEL, model_dir="./models/whisper_de", offline=False):
+def load_model(model_id=DEFAULT_MODEL, model_dir="./models/whisper_de"):
     """
-    Download (if necessary) and load a Whisper model for German speech recognition.
-
-    Args:
-        model_id (str): Hugging Face model ID.
-        model_dir (str): Local directory to store/download the model.
-        offline (bool): If True, will not attempt to download from Hugging Face Hub.
-
-    Returns:
-        pipeline: Hugging Face ASR pipeline ready for inference.
+    Download (if needed) and load Whisper model for German ASR.
     """
     os.makedirs(model_dir, exist_ok=True)
 
-    # Download model if directory is empty
     if not os.listdir(model_dir):
         print(f"[+] Downloading model to: {model_dir}")
         snapshot_download(repo_id=model_id, local_dir=model_dir, local_dir_use_symlinks=False)
 
-    # Select device and precision
+    # Device selection
     if torch.cuda.is_available():
         device_idx, torch_dtype = 0, torch.float16
         device_for_model = "cuda"
@@ -61,20 +53,11 @@ def load_model(model_id=DEFAULT_MODEL, model_dir="./models/whisper_de", offline=
     )
 
 # ===============================
-#  Transcription function
+#  Transcription
 # ===============================
 def transcribe(asr_pipeline, audio_input, language="de", timestamps=False):
     """
     Run speech-to-text transcription.
-
-    Args:
-        asr_pipeline (pipeline): Hugging Face ASR pipeline.
-        audio_input (str or file-like): Path to audio file or BytesIO object.
-        language (str): Language code (default: "de" for German).
-        timestamps (bool): Whether to return timestamps.
-
-    Returns:
-        dict: Transcription result.
     """
     return asr_pipeline(
         audio_input,
@@ -85,29 +68,33 @@ def transcribe(asr_pipeline, audio_input, language="de", timestamps=False):
     )
 
 # ===============================
-#  Pronunciation scoring
+#  Pronunciation Scoring
 # ===============================
 def score_pronunciation(ref_text, hyp_text):
     """
-    Compare the reference text and recognized text,
-    calculating WER, CER, pronunciation score,
-    and listing mistaken words with suggestions.
+    Compare reference and hypothesis text,
+    calculate WER, CER, pronunciation score,
+    and list mistaken words (including missing/extra words).
     """
     w = wer(ref_text.strip(), hyp_text.strip())
     c = cer(ref_text.strip(), hyp_text.strip())
 
-    # Split into words for comparison (remove simple punctuation)
     ref_words = ref_text.strip().replace("!", "").replace(",", "").split()
     hyp_words = hyp_text.strip().replace("!", "").replace(",", "").split()
 
     mistakes = []
-    for ref_w, hyp_w in zip(ref_words, hyp_words):
-        if ref_w.lower() != hyp_w.lower():
-            mistakes.append({
-                "word": hyp_w,
-                "suggestion": ref_w,
-                "tip": f"Pronounce '{ref_w}' more clearly, paying attention to the original sound."
-            })
+    seq = difflib.SequenceMatcher(None, ref_words, hyp_words)
+
+    for tag, i1, i2, j1, j2 in seq.get_opcodes():
+        if tag != 'equal':
+            wrong_segment = hyp_words[j1:j2] or ["(missing)"]
+            correct_segment = ref_words[i1:i2] or ["(extra word)"]
+            for wrong_word in wrong_segment:
+                mistakes.append({
+                    "word": wrong_word,
+                    "suggestion": " ".join(correct_segment),
+                    "tip": f"Pronounce '{' '.join(correct_segment)}' more clearly."
+                })
 
     return {
         "reference": ref_text.strip(),
@@ -119,12 +106,12 @@ def score_pronunciation(ref_text, hyp_text):
     }
 
 # ===============================
-#  CLI runner (optional)
+#  CLI Runner
 # ===============================
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="ASR German + Pronunciation scoring")
+    parser = argparse.ArgumentParser(description="ASR German + Pronunciation Scoring")
     parser.add_argument("--audio", required=True, help="Path to audio file")
     parser.add_argument("--ref_text", required=True, help="Reference German sentence")
     args = parser.parse_args()
