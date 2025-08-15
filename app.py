@@ -36,38 +36,26 @@ def hello_api():
 # ===============================
 @app.route("/api/evaluate", methods=["POST"])
 def evaluate_api():
-    """
-    Evaluate pronunciation based on a given reference text and audio.
-
-    - If an audio file is uploaded, it will be used directly.
-    - If no audio is provided, synthetic audio will be generated
-      from the reference text using gTTS (for testing only).
-    """
     ref_text = request.form.get("ref_text", None)
     if not ref_text:
         return jsonify({"error": "No reference text provided"}), 400
 
     try:
         if "audio" in request.files:
-            # Use the uploaded audio file
             audio_bytes = BytesIO(request.files["audio"].read())
         else:
-            # Generate synthetic audio from ref_text for testing
             tts = gTTS(text=ref_text, lang="de")
             audio_bytes = BytesIO()
             tts.write_to_fp(audio_bytes)
             audio_bytes.seek(0)
 
-        # Read audio file into numpy array for Whisper
         data, samplerate = sf.read(audio_bytes)
         if not isinstance(data, np.ndarray):
             data = np.array(data)
 
-        # Run speech-to-text
         result = transcribe(asr, data, language="de")
         hyp_text = result.get("text", "").strip()
 
-        # Calculate pronunciation metrics
         metrics = score_pronunciation(ref_text, hyp_text)
 
         return jsonify({

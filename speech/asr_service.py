@@ -89,29 +89,33 @@ def transcribe(asr_pipeline, audio_input, language="de", timestamps=False):
 # ===============================
 def score_pronunciation(ref_text, hyp_text):
     """
-    Compare reference text and recognized text, calculating WER, CER, and pronunciation score.
-
-    Args:
-        ref_text (str): The reference (correct) sentence.
-        hyp_text (str): The sentence recognized by the ASR model.
-
-    Returns:
-        dict: {
-            "reference": str,
-            "hypothesis": str,
-            "WER": float,
-            "CER": float,
-            "PronunciationScore": float (0–100)
-        }
+    Compare the reference text and recognized text,
+    calculating WER, CER, pronunciation score,
+    and listing mistaken words with suggestions.
     """
     w = wer(ref_text.strip(), hyp_text.strip())
     c = cer(ref_text.strip(), hyp_text.strip())
+
+    # Split into words for comparison (remove simple punctuation)
+    ref_words = ref_text.strip().replace("!", "").replace(",", "").split()
+    hyp_words = hyp_text.strip().replace("!", "").replace(",", "").split()
+
+    mistakes = []
+    for ref_w, hyp_w in zip(ref_words, hyp_words):
+        if ref_w.lower() != hyp_w.lower():
+            mistakes.append({
+                "word": hyp_w,
+                "suggestion": ref_w,
+                "tip": f"Pronounce '{ref_w}' more clearly, paying attention to the original sound."
+            })
+
     return {
         "reference": ref_text.strip(),
         "hypothesis": hyp_text.strip(),
         "WER": w,
         "CER": c,
-        "PronunciationScore": round((1 - w) * 100, 2)
+        "PronunciationScore": round((1 - w) * 100, 2),
+        "mistake_words": mistakes
     }
 
 # ===============================
