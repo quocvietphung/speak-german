@@ -5,10 +5,13 @@ from huggingface_hub import snapshot_download
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 from jiwer import wer, cer
 
+# ===============================
+# Default model (German Whisper)
+# ===============================
 DEFAULT_MODEL = "primeline/whisper-large-v3-turbo-german"
 
 # ===============================
-#  Load Whisper ASR Model
+# Load Whisper ASR Model
 # ===============================
 def load_model(model_id=DEFAULT_MODEL, model_dir="./models/whisper_de"):
     """
@@ -18,14 +21,18 @@ def load_model(model_id=DEFAULT_MODEL, model_dir="./models/whisper_de"):
 
     if not os.listdir(model_dir):
         print(f"[+] Downloading model to: {model_dir}")
-        snapshot_download(repo_id=model_id, local_dir=model_dir, local_dir_use_symlinks=False)
+        snapshot_download(
+            repo_id=model_id,
+            local_dir=model_dir,
+            local_dir_use_symlinks=False
+        )
 
     # Device selection
     if torch.cuda.is_available():
         device_idx, torch_dtype = 0, torch.float16
         device_for_model = "cuda"
     elif getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
-        device_idx, torch_dtype = -1, torch.float32
+        device_idx, torch_dtype = 0, torch.float32
         device_for_model = "mps"
     else:
         device_idx, torch_dtype = -1, torch.float32
@@ -49,32 +56,34 @@ def load_model(model_id=DEFAULT_MODEL, model_dir="./models/whisper_de"):
         model=model,
         tokenizer=processor.tokenizer,
         feature_extractor=processor.feature_extractor,
-        device=device_idx
+        device=device_idx,
+        chunk_length_s=30,
+        stride_length_s=(4, 2),
     )
 
 # ===============================
-#  Transcription
+# Transcription
 # ===============================
 def transcribe(asr_pipeline, audio_input, language="de", timestamps=False):
     """
     Run speech-to-text transcription.
+    audio_input: numpy array hoặc path đến file âm thanh
     """
     return asr_pipeline(
         audio_input,
         generate_kwargs={"language": language, "task": "transcribe"},
-        chunk_length_s=30,
-        stride_length_s=(4, 2),
         return_timestamps=timestamps,
     )
 
+
 # ===============================
-#  Pronunciation Scoring
+# Pronunciation Scoring
 # ===============================
 def score_pronunciation(ref_text, hyp_text):
     """
     Compare reference and hypothesis text,
     calculate WER, CER, pronunciation score,
-    and list mistaken words (including missing/extra words).
+    and list mistaken words.
     """
     w = wer(ref_text.strip(), hyp_text.strip())
     c = cer(ref_text.strip(), hyp_text.strip())
@@ -105,8 +114,9 @@ def score_pronunciation(ref_text, hyp_text):
         "mistake_words": mistakes
     }
 
+
 # ===============================
-#  CLI Runner
+# CLI Runner (test nhanh)
 # ===============================
 if __name__ == "__main__":
     import argparse
