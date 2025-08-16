@@ -1,73 +1,95 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from io import BytesIO
 from speech.asr_service import load_model, transcribe, score_pronunciation
-from gtts import gTTS
 import soundfile as sf
-import numpy as np
+import traceback
+import tempfile
+import subprocess
+import os
 
 # ===============================
-#  Initialize Flask App
+# Initialize Flask App
 # ===============================
 app = Flask(__name__)
-CORS(app)  # Enable CORS for requests from frontend (Next.js)
+CORS(app)
 
 # ===============================
-#  Load the ASR model once when server starts
+# Load ASR model once
 # ===============================
 print("[+] Initializing ASR model...")
 asr = load_model()
 print("[+] Model loaded and ready!")
 
-
 # ===============================
-#  Test route to check API connection
+# Test route
 # ===============================
 @app.route("/api/hello", methods=["GET"])
 def hello_api():
-    """
-    Quick test route to verify API is running.
-    """
     return jsonify({"message": "Hello from Flask API!"}), 200
 
 
 # ===============================
-#  API to evaluate pronunciation
+# Helper: Convert webm → wav
+# ===============================
+def convert_webm_to_wav(audio_bytes):
+    with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as tmp_in, \
+         tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_out:
+
+        tmp_in.write(audio_bytes)
+        tmp_in.flush()
+
+        # convert bằng ffmpeg
+        subprocess.run([
+            "ffmpeg", "-y", "-i", tmp_in.name,
+            "-ar", "16000", "-ac", "1", tmp_out.name
+        ], check=True)
+
+        data, samplerate = sf.read(tmp_out.name, dtype="float32")
+
+        # xóa file tạm
+        os.remove(tmp_in.name)
+        os.remove(tmp_out.name)
+
+        return data, samplerate
+
+
+# ===============================
+# Speech-to-Text + Scoring API
 # ===============================
 @app.route("/api/evaluate", methods=["POST"])
 def evaluate_api():
-    ref_text = request.form.get("ref_text", None)
-    if not ref_text:
-        return jsonify({"error": "No reference text provided"}), 400
-
     try:
-        if "audio" in request.files:
-            audio_bytes = BytesIO(request.files["audio"].read())
-        else:
-            tts = gTTS(text=ref_text, lang="de")
-            audio_bytes = BytesIO()
-            tts.write_to_fp(audio_bytes)
-            audio_bytes.seek(0)
+        if "audio" not in request.files:
+            return jsonify({"error": "No audio file uploaded"}), 400
 
-        data, samplerate = sf.read(audio_bytes)
-        if not isinstance(data, np.ndarray):
-            data = np.array(data)
+        audio_bytes = request.files["audio"].read()
+        ref_text = request.form.get("target_text", "").strip()
+
+        data, samplerate = convert_webm_to_wav(audio_bytes)
 
         result = transcribe(asr, data, language="de")
         hyp_text = result.get("text", "").strip()
 
-        metrics = score_pronunciation(ref_text, hyp_text)
+        score, mistakes, tip = None, [], ""
+        if ref_text:
+            metrics = score_pronunciation(ref_text, hyp_text)
+            score = metrics.get("PronunciationScore")
+            mistakes = [m["word"] for m in metrics.get("mistake_words", [])]
+            tip = metrics.get("mistake_words", [{}])[0].get("tip", "") if metrics.get("mistake_words") else ""
 
         return jsonify({
             "transcript": hyp_text,
-            "metrics": metrics
+            "score": score,
+            "mistakes": mistakes,
+            "tip": tip
         }), 200
 
     except Exception as e:
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 # ===============================
-#  Run server
+# Run server
 # ===============================
 if __name__ == "__main__":
     app.run(debug=True, port=8000)
