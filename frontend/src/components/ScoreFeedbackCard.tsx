@@ -10,8 +10,8 @@ import {
   WrapItem,
   Badge,
   Spinner,
-  Separator,
   Card,
+  Separator,
 } from "@chakra-ui/react";
 
 interface ScoreFeedbackProps {
@@ -27,10 +27,17 @@ export default class ScoreFeedbackCard extends React.Component<ScoreFeedbackProp
     const { loading, score, mistakes, tip, teacherFeedback } = this.props;
 
     return (
-      <Card.Root p={6} rounded="2xl" shadow="sm" borderWidth="1px" bg="white">
+      <Card.Root
+        p={6}
+        rounded="2xl"
+        shadow="xl"
+        borderWidth="1px"
+        bgGradient="linear(to-br, white, gray.50)"
+      >
         <Card.Header>
           <Heading size="md">📊 Score & Feedback</Heading>
         </Card.Header>
+
         <Card.Body>
           {loading ? (
             <HStack justify="center" gap={4}>
@@ -39,6 +46,7 @@ export default class ScoreFeedbackCard extends React.Component<ScoreFeedbackProp
             </HStack>
           ) : score !== null ? (
             <VStack align="start" gap={5}>
+              {/* Score */}
               <Text
                 fontSize="4xl"
                 fontWeight="bold"
@@ -49,7 +57,7 @@ export default class ScoreFeedbackCard extends React.Component<ScoreFeedbackProp
 
               {/* Mistakes */}
               <Box w="full">
-                <Text fontWeight="medium">Mistake words</Text>
+                <Text fontWeight="medium">Mistake Words</Text>
                 <Wrap mt={2} gap={2}>
                   {mistakes.length > 0 ? (
                     mistakes.map((w, i) => (
@@ -63,7 +71,7 @@ export default class ScoreFeedbackCard extends React.Component<ScoreFeedbackProp
                 </Wrap>
               </Box>
 
-              <Separator />
+              <Separator orientation="horizontal" />
 
               {/* Tip */}
               <Box w="full">
@@ -74,9 +82,9 @@ export default class ScoreFeedbackCard extends React.Component<ScoreFeedbackProp
               {/* Teacher Feedback */}
               {teacherFeedback && (
                 <>
-                  <Separator />
+                  <Separator orientation="horizontal" />
                   <Box w="full">
-                    <Text fontWeight="medium">👩‍🏫 Lehrer Feedback</Text>
+                    <Text fontWeight="medium">👩‍🏫 Teacher Feedback</Text>
                     <Text whiteSpace="pre-wrap">{teacherFeedback}</Text>
                   </Box>
                 </>
