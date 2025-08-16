@@ -86,7 +86,8 @@ def evaluate_api():
         print("============================\n")
 
         return jsonify({
-            "transcript": hyp_text,
+            "reference": ref_text,
+            "hypothesis": hyp_text,
             "score": score,
             "mistakes": mistakes,
             "tip": tip
