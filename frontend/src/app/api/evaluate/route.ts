@@ -7,28 +7,41 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const audio = formData.get("audio") as File | null;
     const targetText = formData.get("target_text") as string | null;
+
     if (!audio || !targetText) {
-      return NextResponse.json({ error: "Missing audio or target_text" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing audio or target_text" },
+        { status: 400 }
+      );
     }
+
+    // 🔄 Convert File -> Blob (để tránh lỗi khi forward trong Node.js)
+    const bytes = await audio.arrayBuffer();
+    const blob = new Blob([bytes], { type: audio.type });
 
     // Gửi file audio + câu đích sang backend FastAPI
     const forwardData = new FormData();
-    forwardData.append("audio", audio, "recording.webm");
+    forwardData.append("audio", blob, "recording.webm");
     forwardData.append("target_text", targetText);
 
     const backendRes = await fetch("http://127.0.0.1:8000/api/evaluate", {
       method: "POST",
       body: forwardData,
     });
+
     if (!backendRes.ok) {
       const errText = await backendRes.text();
-      return NextResponse.json({ error: "Backend error", details: errText }, { status: backendRes.status });
+      return NextResponse.json(
+        { error: "Backend error", details: errText },
+        { status: backendRes.status }
+      );
     }
+
     const data = await backendRes.json();
     /**
      * data: {
      *   reference: string,
-     *   hypothesis: string,
+     *   hypothesis: string,   // <- chính là transcript
      *   score: number,
      *   mistakes: string[],
      *   tip: string
@@ -73,8 +86,17 @@ Bitte gib ein Lehrer-Feedback inklusive Ausspracheanalyse wie oben beschrieben.`
         }),
       });
 
-      const aiData = await aiRes.json();
-      teacherFeedback = aiData?.choices?.[0]?.message?.content?.trim() || data.tip || "Gut gemacht!";
+      if (aiRes.ok) {
+        const aiData = await aiRes.json();
+        teacherFeedback =
+          aiData?.choices?.[0]?.message?.content?.trim() ||
+          data.tip ||
+          "Gut gemacht!";
+      } else {
+        const errText = await aiRes.text();
+        console.error("Azure OpenAI error:", errText);
+        teacherFeedback = data.tip || "Gut gemacht!";
+      }
     } catch (err) {
       console.error("Azure OpenAI error:", err);
       teacherFeedback = data.tip || "Gut gemacht!";
@@ -82,9 +104,13 @@ Bitte gib ein Lehrer-Feedback inklusive Ausspracheanalyse wie oben beschrieben.`
 
     return NextResponse.json({
       ...data,
+      transcript: data.hypothesis,
       teacherFeedback,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: "Server error", details: err.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Server error", details: err.message },
+      { status: 500 }
+    );
   }
 }
