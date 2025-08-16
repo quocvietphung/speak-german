@@ -15,11 +15,11 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // 🔄 Convert File -> Blob (để tránh lỗi khi forward trong Node.js)
+        // 🔄 Convert File -> Blob (to avoid errors when forwarding in Node.js)
         const bytes = await audio.arrayBuffer();
         const blob = new Blob([bytes], {type: audio.type});
 
-        // Gửi file audio + câu đích sang backend FastAPI
+        // Send audio file + target sentence to FastAPI backend
         const forwardData = new FormData();
         forwardData.append("audio", blob, "recording.webm");
         forwardData.append("target_text", targetText);
@@ -41,14 +41,14 @@ export async function POST(req: NextRequest) {
         /**
          * data: {
          *   reference: string,
-         *   hypothesis: string,   // <- chính là transcript
+         *   hypothesis: string,   // <- this is the transcript
          *   score: number,
          *   mistakes: string[],
          *   tip: string
          * }
          */
 
-            // Gọi Azure OpenAI để tạo feedback sâu hơn
+        // Call Azure OpenAI to generate deeper feedback
         const apiKey = process.env.AZURE_OPENAI_API_KEY!;
         const endpoint = process.env.AZURE_OPENAI_ENDPOINT!;
         const deployment = process.env.AZURE_OPENAI_DEPLOYMENT_NAME!;
@@ -72,13 +72,13 @@ export async function POST(req: NextRequest) {
                         },
                         {
                             role: "user",
-                            content: `Referenzsatz: ${data.reference}
-                                      Schüler hat gesagt: ${data.hypothesis}
-                                      Punktzahl: ${data.score}%
-                                      Fehlerwörter: ${data.mistakes?.join(", ") || "keine"}
-                                      Technischer Hinweis: ${data.tip}
+                            content: `Reference sentence: ${data.reference}
+                                      Student said: ${data.hypothesis}
+                                      Score: ${data.score}%
+                                      Mistake words: ${data.mistakes?.join(", ") || "none"}
+                                      Technical tip: ${data.tip}
                                       
-                                      Bitte gib ein Lehrer-Feedback inklusive Ausspracheanalyse wie oben beschrieben.`,
+                                      Please provide teacher feedback including pronunciation analysis as described above.`,
                         },
                     ],
                     max_tokens: 256,
@@ -91,15 +91,15 @@ export async function POST(req: NextRequest) {
                 teacherFeedback =
                     aiData?.choices?.[0]?.message?.content?.trim() ||
                     data.tip ||
-                    "Gut gemacht!";
+                    "Good job!";
             } else {
                 const errText = await aiRes.text();
                 console.error("Azure OpenAI error:", errText);
-                teacherFeedback = data.tip || "Gut gemacht!";
+                teacherFeedback = data.tip || "Good job!";
             }
         } catch (err) {
             console.error("Azure OpenAI error:", err);
-            teacherFeedback = data.tip || "Gut gemacht!";
+            teacherFeedback = data.tip || "Good job!";
         }
 
         return NextResponse.json({

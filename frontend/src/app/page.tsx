@@ -18,48 +18,55 @@ export default function Home() {
   const audioChunksRef = useRef<Blob[]>([]);
 
   const handleRecord = async () => {
-  if (!recording) {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const mediaRecorder = new MediaRecorder(stream);
-    mediaRecorderRef.current = mediaRecorder;
-    audioChunksRef.current = [];
+    if (!recording) {
+      // Start recording: request microphone access and initialize MediaRecorder
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
 
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) audioChunksRef.current.push(e.data);
-    };
+      // Collect audio data chunks as they become available
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
 
-    mediaRecorder.onstop = async () => {
-      setRecording(false);
-      setLoading(true);
+      // When recording stops, process the audio and send it to the backend for evaluation
+      mediaRecorder.onstop = async () => {
+        setRecording(false);
+        setLoading(true);
 
-      const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-      const formData = new FormData();
-      formData.append("audio", audioBlob, "recording.webm");
-      formData.append("target_text", targetText);
+        // Combine audio chunks into a single Blob
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const formData = new FormData();
+        formData.append("audio", audioBlob, "recording.webm");
+        formData.append("target_text", targetText);
 
-      try {
-        const res = await fetch("/api/evaluate", { method: "POST", body: formData });
-        const data = await res.json();
-        setScore(data.score ?? null);
-        setMistakes(Array.isArray(data.mistakes) ? data.mistakes : []);
-        setTranscript(data.transcript ?? "");
-        setTip(data.tip ?? "");
-        setTeacherFeedback(data.teacherFeedback ?? "");
-      } catch (err) {
-        console.error("API error", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+        try {
+          // Send audio and target text to the evaluation API
+          const res = await fetch("/api/evaluate", { method: "POST", body: formData });
+          const data = await res.json();
+          setScore(data.score ?? null);
+          setMistakes(Array.isArray(data.mistakes) ? data.mistakes : []);
+          setTranscript(data.transcript ?? "");
+          setTip(data.tip ?? "");
+          setTeacherFeedback(data.teacherFeedback ?? "");
+        } catch (err) {
+          console.error("API error", err);
+        } finally {
+          setLoading(false);
+        }
+      };
 
-    mediaRecorder.start();
-    setRecording(true);
-  } else {
-    mediaRecorderRef.current?.stop(); // ✅ onstop đã được gán từ trước
-  }
-};
+      mediaRecorder.start();
+      setRecording(true);
+    } else {
+      // Stop recording (onstop handler will be triggered)
+      mediaRecorderRef.current?.stop();
+    }
+  };
 
   const nextSentence = async () => {
+    // Reset feedback and score state before fetching a new sentence
     setScore(null);
     setMistakes([]);
     setTranscript("");
@@ -67,6 +74,7 @@ export default function Home() {
     setTeacherFeedback("");
 
     try {
+      // Request a new practice sentence from the backend
       const res = await fetch("/api/sentence", { method: "POST" });
       const data = await res.json();
       setTargetText(data.sentence || "Keine Antwort");
