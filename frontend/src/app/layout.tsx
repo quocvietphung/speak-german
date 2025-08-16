@@ -1,17 +1,22 @@
-"use client";
+'use client';
+import { ChakraProvider, defaultSystem } from '@chakra-ui/react';
 
-import { ReactNode } from "react";
-import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
-import { Inter } from "next/font/google";
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-
-export default function RootLayout({ children }: { children: ReactNode }) {
-  return (
-    <html lang="vi" suppressHydrationWarning>
-      <body className={inter.variable}>
-        <ChakraProvider value={defaultSystem}>{children}</ChakraProvider>
-      </body>
-    </html>
-  );
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+    return (
+        <html lang="vi">
+        <body
+            style={{
+                minHeight: '100vh',
+                background: 'var(--background, #f9fafb)',
+                color: 'var(--foreground, #22223b)',
+                fontFamily:
+                    'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif',
+            }}
+        >
+        <ChakraProvider value={defaultSystem}>
+            {children}
+        </ChakraProvider>
+        </body>
+        </html>
+    );
 }

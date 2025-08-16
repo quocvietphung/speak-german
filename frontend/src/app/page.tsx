@@ -38,8 +38,8 @@ export default function Home() {
   return (
     <Box
       minH="100vh"
-      bg="gray.50"
-      p={{ base: 4, md: 6 }}
+      bgGradient="linear(to-b, gray.50, white)"
+      p={{ base: 4, md: 8 }}
       display="flex"
       alignItems="center"
       justifyContent="center"
@@ -51,17 +51,24 @@ export default function Home() {
         w="100%"
       >
         {/* Left: Pronunciation Practice */}
-        <Card.Root p={4} variant="elevated">
+        <Card.Root
+          p={{ base: 4, md: 6 }}
+          rounded="2xl"
+          shadow="sm"
+          borderWidth="1px"
+          bg="white"
+          variant="elevated"
+        >
           <Card.Header pb={2}>
             <Heading size="md">🎤 Pronunciation Practice</Heading>
           </Card.Header>
           <Card.Body>
             <VStack align="start" gap={5} w="full">
-              <Text fontSize="sm" color="gray.500">
+              <Text fontSize="sm" color="gray.600">
                 Read the sentence aloud:
               </Text>
 
-              <Text fontSize="xl" fontWeight="bold">
+              <Text fontSize="xl" fontWeight="semibold" lineHeight="tall">
                 {targetText}
               </Text>
 
@@ -69,29 +76,38 @@ export default function Home() {
                 <Button
                   onClick={handleRecord}
                   colorScheme={recording ? "red" : "gray"}
-                  borderRadius="full"
-                  w="48px"
-                  h="48px"
+                  rounded="full"
+                  w="56px"
+                  h="56px"
+                  fontSize="xl"
+                  shadow="xs"
+                  _active={{ transform: "scale(0.98)" }}
                 >
                   🎙
                 </Button>
                 <Text fontSize="sm" color="gray.500">
-                  00:03 s
+                  {recording ? "Recording…" : "00:03 s"}
                 </Text>
               </HStack>
 
               <VStack align="start" gap={2} w="full">
-                <Text fontSize="sm" fontWeight="medium">
+                <Text fontSize="sm" fontWeight="medium" color="gray.700">
                   Auto-transcribed text
                 </Text>
                 <Textarea
                   value={transcript}
                   onChange={(e) => setTranscript(e.target.value)}
                   rows={3}
+                  resize="vertical"
                 />
               </VStack>
 
-              <Button colorScheme="blue" w="full" onClick={handleAnalyze}>
+              <Button
+                colorScheme="blue"
+                w="full"
+                onClick={handleAnalyze}
+                shadow="xs"
+              >
                 Analyze & Score
               </Button>
             </VStack>
@@ -99,7 +115,14 @@ export default function Home() {
         </Card.Root>
 
         {/* Right: Score & Feedback */}
-        <Card.Root p={4} variant="elevated">
+        <Card.Root
+          p={{ base: 4, md: 6 }}
+          rounded="2xl"
+          shadow="sm"
+          borderWidth="1px"
+          bg="white"
+          variant="elevated"
+        >
           <Card.Header pb={2}>
             <Heading size="md">📊 Score & Feedback</Heading>
           </Card.Header>
@@ -116,13 +139,13 @@ export default function Home() {
                 </Box>
 
                 <VStack align="start" gap={2} w="full">
-                  <Text fontSize="sm" fontWeight="medium">
+                  <Text fontSize="sm" fontWeight="medium" color="gray.700">
                     Mistake words
                   </Text>
-                  <Wrap>
+                  <Wrap gap={2}>
                     {mistakes.map((w, i) => (
                       <WrapItem key={i}>
-                        <Badge colorScheme="red" px={2} py={1}>
+                        <Badge colorScheme="red" px={2} py={1} rounded="md">
                           {w}
                         </Badge>
                       </WrapItem>
@@ -133,10 +156,12 @@ export default function Home() {
                 <Separator />
 
                 <VStack align="start" gap={2} w="full">
-                  <Text fontSize="sm" fontWeight="medium">
+                  <Text fontSize="sm" fontWeight="medium" color="gray.700">
                     Tip
                   </Text>
-                  <Text fontSize="sm">{tip}</Text>
+                  <Text fontSize="sm" color="gray.800">
+                    {tip}
+                  </Text>
                 </VStack>
               </VStack>
             ) : (
