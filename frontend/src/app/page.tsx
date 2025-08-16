@@ -1,10 +1,8 @@
 "use client";
-import { useState, useRef } from "react";
-import {
-  Box, Grid, VStack, HStack, Text, Button,
-  Textarea, Badge, Heading, Wrap, WrapItem,
-  Card, Spinner, Separator
-} from "@chakra-ui/react";
+import React, { useState, useRef } from "react";
+import { Box, Grid } from "@chakra-ui/react";
+import RecordingCard from "@/components/RecordingCard";
+import ScoreFeedbackCard from "@/components/ScoreFeedbackCard";
 
 export default function Home() {
   const [targetText, setTargetText] = useState("Klicke auf Next Sentence, um zu starten.");
@@ -13,7 +11,7 @@ export default function Home() {
   const [score, setScore] = useState<number | null>(null);
   const [mistakes, setMistakes] = useState<string[]>([]);
   const [tip, setTip] = useState("");
-  const [teacherFeedback, setTeacherFeedback] = useState(""); // 👈 thêm state
+  const [teacherFeedback, setTeacherFeedback] = useState("");
   const [transcript, setTranscript] = useState("");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -48,7 +46,7 @@ export default function Home() {
           setMistakes(Array.isArray(data.mistakes) ? data.mistakes : []);
           setTranscript(data.transcript ?? "");
           setTip(data.tip ?? "");
-          setTeacherFeedback(data.teacherFeedback ?? ""); // 👈 set feedback
+          setTeacherFeedback(data.teacherFeedback ?? "");
         } catch (err) {
           console.error("API error", err);
         } finally {
@@ -63,14 +61,10 @@ export default function Home() {
     setMistakes([]);
     setTranscript("");
     setTip("");
-    setTeacherFeedback(""); // reset feedback
+    setTeacherFeedback("");
 
     try {
-      const res = await fetch("/api/sentence", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
+      const res = await fetch("/api/sentence", { method: "POST" });
       const data = await res.json();
       setTargetText(data.sentence || "Keine Antwort");
     } catch (err) {
@@ -82,81 +76,20 @@ export default function Home() {
   return (
     <Box minH="100vh" p={8} bg="gray.50" display="flex" justifyContent="center">
       <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} gap={8} maxW="6xl" w="100%">
-
-        {/* Recording Card */}
-        <Card.Root p={6} rounded="2xl" shadow="sm" borderWidth="1px" bg="white">
-          <Card.Header>
-            <Heading size="md">🎤 Pronunciation Practice</Heading>
-          </Card.Header>
-          <Card.Body>
-            <VStack align="start" gap={5}>
-              <Text fontSize="xl" fontWeight="semibold">{targetText}</Text>
-              <Button onClick={nextSentence} colorScheme="teal" size="sm">Next Sentence</Button>
-              <HStack gap={4}>
-                <Button
-                  onClick={handleRecord}
-                  colorScheme={recording ? "red" : "blue"}
-                  rounded="full"
-                  w="56px" h="56px"
-                >
-                  {recording ? "⏹" : "🎙"}
-                </Button>
-                <Text fontSize="sm">{recording ? "Recording…" : "Tap to start recording"}</Text>
-              </HStack>
-              <Textarea value={transcript} readOnly rows={3} placeholder="Transcript will appear here..." />
-            </VStack>
-          </Card.Body>
-        </Card.Root>
-
-        {/* Score & Feedback Card */}
-        <Card.Root p={6} rounded="2xl" shadow="sm" borderWidth="1px" bg="white">
-          <Card.Header>
-            <Heading size="md">📊 Score & Feedback</Heading>
-          </Card.Header>
-          <Card.Body>
-            {loading ? (
-              <HStack justify="center" gap={4}>
-                <Spinner size="lg" color="blue.400" />
-                <Text>Analyzing your speech...</Text>
-              </HStack>
-            ) : score !== null ? (
-              <VStack align="start" gap={5}>
-                <Text fontSize="4xl" fontWeight="bold" color={score >= 80 ? "green.500" : "orange.400"}>{score}%</Text>
-
-                {/* Mistakes */}
-                <Box w="full">
-                  <Text fontWeight="medium">Mistake words</Text>
-                  <Wrap mt={2} gap={2}>
-                    {mistakes.length > 0 ? mistakes.map((w, i) => (
-                      <WrapItem key={i}><Badge colorScheme="red">{w}</Badge></WrapItem>
-                    )) : <Text color="gray.400">No mistakes 🎉</Text>}
-                  </Wrap>
-                </Box>
-
-                <Separator />
-
-                {/* Tip */}
-                <Box w="full">
-                  <Text fontWeight="medium">Tip</Text>
-                  <Text>{tip}</Text>
-                </Box>
-
-                {/* Teacher Feedback 👩‍🏫 */}
-                {teacherFeedback && (
-                  <>
-                    <Separator />
-                    <Box w="full">
-                      <Text fontWeight="medium">👩‍🏫 Lehrer Feedback</Text>
-                      <Text>{teacherFeedback}</Text>
-                    </Box>
-                  </>
-                )}
-              </VStack>
-            ) : (
-              <Text color="gray.400">No score yet. Record and analyze.</Text>
-            )}
-          </Card.Body>
-        </Card.Root>
+        <RecordingCard
+          targetText={targetText}
+          recording={recording}
+          transcript={transcript}
+          onNextSentence={nextSentence}
+          onRecord={handleRecord}
+        />
+        <ScoreFeedbackCard
+          loading={loading}
+          score={score}
+          mistakes={mistakes}
+          tip={tip}
+          teacherFeedback={teacherFeedback}
+        />
       </Grid>
     </Box>
   );
