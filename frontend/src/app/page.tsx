@@ -13,6 +13,7 @@ export default function Home() {
   const [score, setScore] = useState<number | null>(null);
   const [mistakes, setMistakes] = useState<string[]>([]);
   const [tip, setTip] = useState("");
+  const [teacherFeedback, setTeacherFeedback] = useState(""); // 👈 thêm state
   const [transcript, setTranscript] = useState("");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -47,6 +48,7 @@ export default function Home() {
           setMistakes(Array.isArray(data.mistakes) ? data.mistakes : []);
           setTranscript(data.transcript ?? "");
           setTip(data.tip ?? "");
+          setTeacherFeedback(data.teacherFeedback ?? ""); // 👈 set feedback
         } catch (err) {
           console.error("API error", err);
         } finally {
@@ -61,12 +63,13 @@ export default function Home() {
     setMistakes([]);
     setTranscript("");
     setTip("");
+    setTeacherFeedback(""); // reset feedback
 
     try {
       const res = await fetch("/api/sentence", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}), // không cần gì thêm, API đã fix prompt
+        body: JSON.stringify({}),
       });
       const data = await res.json();
       setTargetText(data.sentence || "Keine Antwort");
@@ -79,6 +82,7 @@ export default function Home() {
   return (
     <Box minH="100vh" p={8} bg="gray.50" display="flex" justifyContent="center">
       <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} gap={8} maxW="6xl" w="100%">
+
         {/* Recording Card */}
         <Card.Root p={6} rounded="2xl" shadow="sm" borderWidth="1px" bg="white">
           <Card.Header>
@@ -118,6 +122,8 @@ export default function Home() {
             ) : score !== null ? (
               <VStack align="start" gap={5}>
                 <Text fontSize="4xl" fontWeight="bold" color={score >= 80 ? "green.500" : "orange.400"}>{score}%</Text>
+
+                {/* Mistakes */}
                 <Box w="full">
                   <Text fontWeight="medium">Mistake words</Text>
                   <Wrap mt={2} gap={2}>
@@ -126,11 +132,25 @@ export default function Home() {
                     )) : <Text color="gray.400">No mistakes 🎉</Text>}
                   </Wrap>
                 </Box>
+
                 <Separator />
+
+                {/* Tip */}
                 <Box w="full">
                   <Text fontWeight="medium">Tip</Text>
                   <Text>{tip}</Text>
                 </Box>
+
+                {/* Teacher Feedback 👩‍🏫 */}
+                {teacherFeedback && (
+                  <>
+                    <Separator />
+                    <Box w="full">
+                      <Text fontWeight="medium">👩‍🏫 Lehrer Feedback</Text>
+                      <Text>{teacherFeedback}</Text>
+                    </Box>
+                  </>
+                )}
               </VStack>
             ) : (
               <Text color="gray.400">No score yet. Record and analyze.</Text>
