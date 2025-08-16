@@ -18,43 +18,46 @@ export default function Home() {
   const audioChunksRef = useRef<Blob[]>([]);
 
   const handleRecord = async () => {
-    if (!recording) {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
-      mediaRecorder.start();
-      setRecording(true);
-    } else {
-      mediaRecorderRef.current?.stop();
-      mediaRecorderRef.current!.onstop = async () => {
-        setRecording(false);
-        setLoading(true);
+  if (!recording) {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mediaRecorder = new MediaRecorder(stream);
+    mediaRecorderRef.current = mediaRecorder;
+    audioChunksRef.current = [];
 
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        const formData = new FormData();
-        formData.append("audio", audioBlob, "recording.webm");
-        formData.append("target_text", targetText);
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunksRef.current.push(e.data);
+    };
 
-        try {
-          const res = await fetch("/api/evaluate", { method: "POST", body: formData });
-          const data = await res.json();
-          setScore(data.score ?? null);
-          setMistakes(Array.isArray(data.mistakes) ? data.mistakes : []);
-          setTranscript(data.transcript ?? "");
-          setTip(data.tip ?? "");
-          setTeacherFeedback(data.teacherFeedback ?? "");
-        } catch (err) {
-          console.error("API error", err);
-        } finally {
-          setLoading(false);
-        }
-      };
-    }
-  };
+    mediaRecorder.onstop = async () => {
+      setRecording(false);
+      setLoading(true);
+
+      const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+      const formData = new FormData();
+      formData.append("audio", audioBlob, "recording.webm");
+      formData.append("target_text", targetText);
+
+      try {
+        const res = await fetch("/api/evaluate", { method: "POST", body: formData });
+        const data = await res.json();
+        setScore(data.score ?? null);
+        setMistakes(Array.isArray(data.mistakes) ? data.mistakes : []);
+        setTranscript(data.transcript ?? "");
+        setTip(data.tip ?? "");
+        setTeacherFeedback(data.teacherFeedback ?? "");
+      } catch (err) {
+        console.error("API error", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    mediaRecorder.start();
+    setRecording(true);
+  } else {
+    mediaRecorderRef.current?.stop(); // ✅ onstop đã được gán từ trước
+  }
+};
 
   const nextSentence = async () => {
     setScore(null);
