@@ -77,6 +77,14 @@ def evaluate_api():
             mistakes = [m["word"] for m in metrics.get("mistake_words", [])]
             tip = metrics.get("mistake_words", [{}])[0].get("tip", "") if metrics.get("mistake_words") else ""
 
+        print("\n=== DEBUG /api/evaluate ===")
+        print("Reference:", ref_text)
+        print("Hypothesis:", hyp_text)
+        print("Score:", score)
+        print("Mistakes:", mistakes)
+        print("Tip:", tip)
+        print("============================\n")
+
         return jsonify({
             "transcript": hyp_text,
             "score": score,
