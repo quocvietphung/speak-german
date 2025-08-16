@@ -1,17 +1,13 @@
 "use client";
 import { useState, useRef } from "react";
-import { Box, Grid, VStack, HStack, Text, Button, Textarea, Badge, Heading, Wrap, WrapItem, Card, Spinner, Separator } from "@chakra-ui/react";
-
-const sentences = [
-  "Ich möchte bitte eine Flasche Mineralwasser.",
-  "Wo ist der nächste Bahnhof?",
-  "Können Sie mir helfen?",
-  "Wie viel kostet das Ticket?",
-  "Ich lerne Deutsch jeden Tag."
-];
+import {
+  Box, Grid, VStack, HStack, Text, Button,
+  Textarea, Badge, Heading, Wrap, WrapItem,
+  Card, Spinner, Separator
+} from "@chakra-ui/react";
 
 export default function Home() {
-  const [targetText, setTargetText] = useState(sentences[Math.floor(Math.random() * sentences.length)]);
+  const [targetText, setTargetText] = useState("Klicke auf Next Sentence, um zu starten.");
   const [recording, setRecording] = useState(false);
   const [loading, setLoading] = useState(false);
   const [score, setScore] = useState<number | null>(null);
@@ -60,12 +56,24 @@ export default function Home() {
     }
   };
 
-  const nextSentence = () => {
-    setTargetText(sentences[Math.floor(Math.random() * sentences.length)]);
+  const nextSentence = async () => {
     setScore(null);
     setMistakes([]);
     setTranscript("");
     setTip("");
+
+    try {
+      const res = await fetch("/api/sentence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}), // không cần gì thêm, API đã fix prompt
+      });
+      const data = await res.json();
+      setTargetText(data.sentence || "Keine Antwort");
+    } catch (err) {
+      console.error("Error fetching sentence", err);
+      setTargetText("Fehler beim Abrufen des Satzes.");
+    }
   };
 
   return (
@@ -73,13 +81,20 @@ export default function Home() {
       <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} gap={8} maxW="6xl" w="100%">
         {/* Recording Card */}
         <Card.Root p={6} rounded="2xl" shadow="sm" borderWidth="1px" bg="white">
-          <Card.Header><Heading size="md">🎤 Pronunciation Practice</Heading></Card.Header>
+          <Card.Header>
+            <Heading size="md">🎤 Pronunciation Practice</Heading>
+          </Card.Header>
           <Card.Body>
             <VStack align="start" gap={5}>
               <Text fontSize="xl" fontWeight="semibold">{targetText}</Text>
               <Button onClick={nextSentence} colorScheme="teal" size="sm">Next Sentence</Button>
               <HStack gap={4}>
-                <Button onClick={handleRecord} colorScheme={recording ? "red" : "blue"} rounded="full" w="56px" h="56px">
+                <Button
+                  onClick={handleRecord}
+                  colorScheme={recording ? "red" : "blue"}
+                  rounded="full"
+                  w="56px" h="56px"
+                >
                   {recording ? "⏹" : "🎙"}
                 </Button>
                 <Text fontSize="sm">{recording ? "Recording…" : "Tap to start recording"}</Text>
@@ -91,7 +106,9 @@ export default function Home() {
 
         {/* Score & Feedback Card */}
         <Card.Root p={6} rounded="2xl" shadow="sm" borderWidth="1px" bg="white">
-          <Card.Header><Heading size="md">📊 Score & Feedback</Heading></Card.Header>
+          <Card.Header>
+            <Heading size="md">📊 Score & Feedback</Heading>
+          </Card.Header>
           <Card.Body>
             {loading ? (
               <HStack justify="center" gap={4}>
@@ -110,9 +127,14 @@ export default function Home() {
                   </Wrap>
                 </Box>
                 <Separator />
-                <Box w="full"><Text fontWeight="medium">Tip</Text><Text>{tip}</Text></Box>
+                <Box w="full">
+                  <Text fontWeight="medium">Tip</Text>
+                  <Text>{tip}</Text>
+                </Box>
               </VStack>
-            ) : <Text color="gray.400">No score yet. Record and analyze.</Text>}
+            ) : (
+              <Text color="gray.400">No score yet. Record and analyze.</Text>
+            )}
           </Card.Body>
         </Card.Root>
       </Grid>
