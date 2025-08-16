@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState, useRef } from "react";
 import { Box, Grid } from "@chakra-ui/react";
 import RecordingCard from "@/components/RecordingCard";
@@ -15,50 +16,52 @@ export default function Home() {
   const [transcript, setTranscript] = useState("");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
   const handleRecord = async () => {
     if (!recording) {
-      // Start recording: request microphone access and initialize MediaRecorder
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaStreamRef.current = stream;
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        audioChunksRef.current = [];
 
-      // Collect audio data chunks as they become available
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data.size > 0) audioChunksRef.current.push(e.data);
+        };
 
-      // When recording stops, process the audio and send it to the backend for evaluation
-      mediaRecorder.onstop = async () => {
-        setRecording(false);
-        setLoading(true);
+        mediaRecorder.onstop = async () => {
+          mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+          setRecording(false);
+          setLoading(true);
 
-        // Combine audio chunks into a single Blob
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-        const formData = new FormData();
-        formData.append("audio", audioBlob, "recording.webm");
-        formData.append("target_text", targetText);
+          const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+          const formData = new FormData();
+          formData.append("audio", audioBlob, "recording.webm");
+          formData.append("target_text", targetText);
 
-        try {
-          // Send audio and target text to the evaluation API
-          const res = await fetch("/api/evaluate", { method: "POST", body: formData });
-          const data = await res.json();
-          setScore(data.score ?? null);
-          setMistakes(Array.isArray(data.mistakes) ? data.mistakes : []);
-          setTranscript(data.transcript ?? "");
-          setTip(data.tip ?? "");
-          setTeacherFeedback(data.teacherFeedback ?? "");
-        } catch (err) {
-          console.error("API error", err);
-        } finally {
-          setLoading(false);
-        }
-      };
+          try {
+            const res = await fetch("/api/evaluate", { method: "POST", body: formData });
+            const data = await res.json();
+            setScore(data.score ?? null);
+            setMistakes(Array.isArray(data.mistakes) ? data.mistakes : []);
+            setTranscript(data.transcript ?? "");
+            setTip(data.tip ?? "");
+            setTeacherFeedback(data.teacherFeedback ?? "");
+          } catch (err) {
+            console.error("API error", err);
+          } finally {
+            setLoading(false);
+          }
+        };
 
-      mediaRecorder.start();
-      setRecording(true);
+        mediaRecorder.start();
+        setRecording(true);
+      } catch (err) {
+        console.error("Mic access error:", err);
+      }
     } else {
       // Stop recording (onstop handler will be triggered)
       mediaRecorderRef.current?.stop();
