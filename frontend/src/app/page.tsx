@@ -1,12 +1,25 @@
 "use client";
 import { useState, useRef } from "react";
 import {
-  Box, Grid, VStack, HStack, Text, Button, Textarea,
-  Badge, Heading, Separator, Wrap, WrapItem, Card
+  Box,
+  Grid,
+  VStack,
+  HStack,
+  Text,
+  Button,
+  Textarea,
+  Badge,
+  Heading,
+  Wrap,
+  WrapItem,
+  Card,
+  Spinner,
+  Separator,
 } from "@chakra-ui/react";
 
 export default function Home() {
   const [recording, setRecording] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [score, setScore] = useState<number | null>(null);
   const [mistakes, setMistakes] = useState<string[]>([]);
   const [tip, setTip] = useState("");
@@ -23,19 +36,21 @@ export default function Home() {
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
       };
-
       mediaRecorder.start();
       setRecording(true);
     } else {
       mediaRecorderRef.current?.stop();
       mediaRecorderRef.current!.onstop = async () => {
+        setRecording(false);
+        setLoading(true);
+
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
         const formData = new FormData();
         formData.append("audio", audioBlob, "recording.webm");
-        formData.append("target_text", targetText); // ✅ khớp backend
+        formData.append("target_text", targetText);
 
         try {
           const res = await fetch("http://localhost:8000/api/evaluate", {
@@ -50,68 +65,96 @@ export default function Home() {
           setTip(data.tip ?? "");
         } catch (err) {
           console.error("API error", err);
+        } finally {
+          setLoading(false);
         }
       };
-      setRecording(false);
     }
   };
 
   return (
-    <Box minH="100vh" p={8} display="flex" alignItems="center" justifyContent="center">
+    <Box minH="100vh" p={8} bg="gray.50" display="flex" justifyContent="center">
       <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} gap={8} maxW="6xl" w="100%">
 
-        {/* Left */}
-        <Card.Root p={6} rounded="2xl" shadow="sm" borderWidth="1px">
-          <Card.Header pb={2}>
+        {/* Recording Card */}
+        <Card.Root p={6} rounded="2xl" shadow="sm" borderWidth="1px" bg="white">
+          <Card.Header>
             <Heading size="md">🎤 Pronunciation Practice</Heading>
           </Card.Header>
           <Card.Body>
-            <VStack align="start" gap={5} w="full">
+            <VStack align="start" gap={5}>
               <Text fontSize="xl" fontWeight="semibold">{targetText}</Text>
               <HStack gap={4}>
                 <Button
                   onClick={handleRecord}
-                  colorScheme={recording ? "red" : "gray"}
+                  colorScheme={recording ? "red" : "blue"}
                   rounded="full"
-                  w="56px" h="56px"
-                >🎙</Button>
-                <Text fontSize="sm">{recording ? "Recording…" : "Tap to record"}</Text>
+                  w="56px"
+                  h="56px"
+                >
+                  {recording ? "⏹" : "🎙"}
+                </Button>
+                <Text fontSize="sm">{recording ? "Recording…" : "Tap to start recording"}</Text>
               </HStack>
-              <Textarea value={transcript} readOnly rows={3} />
+              <Textarea
+                value={transcript}
+                readOnly
+                rows={3}
+                placeholder="Transcript will appear here..."
+              />
             </VStack>
           </Card.Body>
         </Card.Root>
 
-        {/* Right */}
-        <Card.Root p={6} rounded="2xl" shadow="sm" borderWidth="1px">
-          <Card.Header pb={2}>
+        {/* Score & Feedback Card */}
+        <Card.Root p={6} rounded="2xl" shadow="sm" borderWidth="1px" bg="white">
+          <Card.Header>
             <Heading size="md">📊 Score & Feedback</Heading>
           </Card.Header>
           <Card.Body>
-            {score !== null ? (
-              <VStack align="start" gap={5} w="full">
-                <Box>
-                  <Text fontSize="4xl" fontWeight="bold">{score}%</Text>
-                </Box>
-                <VStack align="start" gap={2} w="full">
+            {loading ? (
+              <HStack justify="center" gap={4}>
+                <Spinner size="lg" color="blue.400" />
+                <Text>Analyzing your speech...</Text>
+              </HStack>
+            ) : score !== null ? (
+              <VStack align="start" gap={5}>
+                <Text
+                  fontSize="4xl"
+                  fontWeight="bold"
+                  color={score >= 80 ? "green.500" : "orange.400"}
+                >
+                  {score}%
+                </Text>
+
+                <Box w="full">
                   <Text fontWeight="medium">Mistake words</Text>
-                  <Wrap gap={2}>
+                  <Wrap mt={2} gap={2}>
                     {mistakes.length > 0 ? (
                       mistakes.map((w, i) => (
-                        <WrapItem key={i}><Badge colorScheme="red">{w}</Badge></WrapItem>
+                        <WrapItem key={i}>
+                          <Badge colorScheme="red">{w}</Badge>
+                        </WrapItem>
                       ))
-                    ) : <Text color="gray.400">No mistakes 🎉</Text>}
+                    ) : (
+                      <Text color="gray.400">No mistakes 🎉</Text>
+                    )}
                   </Wrap>
-                </VStack>
+                </Box>
+
                 <Separator />
-                <Text fontWeight="medium">Tip</Text>
-                <Text>{tip}</Text>
+
+                <Box w="full">
+                  <Text fontWeight="medium">Tip</Text>
+                  <Text>{tip}</Text>
+                </Box>
               </VStack>
             ) : (
               <Text color="gray.400">No score yet. Record and analyze.</Text>
             )}
           </Card.Body>
         </Card.Root>
+
       </Grid>
     </Box>
   );
