@@ -42,7 +42,6 @@ export default function RecordingCard({
   const handlePlayTarget = () => {
     if ("speechSynthesis" in window) {
       const utterance = new SpeechSynthesisUtterance(targetText);
-      // Auto chọn giọng: có ký tự tiếng Đức -> de-DE, ngược lại en-US
       utterance.lang = /[äöüÄÖÜß]/.test(targetText) ? "de-DE" : "en-US";
       utterance.rate = 1;
       utterance.pitch = 1;
@@ -60,7 +59,7 @@ export default function RecordingCard({
       rounded="2xl"
       borderWidth="1px"
       shadow="xl"
-      bg="white" // 🌟 nền trắng thay vì gradient
+      bg="white"
       _dark={{
         bg: "gray.800",
         borderColor: "whiteAlpha.200",
@@ -77,7 +76,6 @@ export default function RecordingCard({
 
       <Card.Body>
         <VStack align="center" gap={6} w="full">
-          {/* Câu mẫu + nút phát âm */}
           <Box textAlign="center" w="full">
             <Badge colorPalette="blue" rounded="full" px={3} py={1}>
               Target
@@ -100,7 +98,6 @@ export default function RecordingCard({
             </HStack>
           </Box>
 
-          {/* Nút Record chính + hiệu ứng */}
           <VStack gap={3}>
             <Box position="relative" w="96px" h="96px">
               {recording && (
@@ -148,7 +145,6 @@ export default function RecordingCard({
               </VisuallyHidden>
             </Box>
 
-            {/* Equalizer */}
             <HStack gap={2} h="30px" align="end">
               {[bounce1, bounce2, bounce3].map((anim, i) => (
                 <Box
@@ -165,7 +161,6 @@ export default function RecordingCard({
               ))}
             </HStack>
 
-            {/* Trạng thái sống cho screen reader */}
             <Box aria-live="polite" aria-atomic="true" minH="1.25rem">
               <Text color="fg.muted" textStyle="sm">
                 {recording ? "🎙️ Recording…" : "Tap mic to start"}
@@ -175,7 +170,6 @@ export default function RecordingCard({
 
           <Separator />
 
-          {/* Next sentence */}
           <Button
             onClick={onNextSentence}
             colorPalette="teal"
