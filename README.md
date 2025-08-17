@@ -37,7 +37,7 @@ Create a `.env.local` file in the `frontend/` directory with your Azure OpenAI c
 AZURE_OPENAI_API_KEY=your-key-here
 AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
 AZURE_OPENAI_DEPLOYMENT_NAME=your-deployment
-AZURE_OPENAI_API_VERSION= your preview
+AZURE_OPENAI_API_VERSION=your-preview
 ```
 
 ### 3. Start the development server
