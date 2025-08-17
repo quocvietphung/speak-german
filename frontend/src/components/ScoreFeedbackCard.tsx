@@ -20,7 +20,7 @@ import {
   VisuallyHidden,
   useToken,
 } from "@chakra-ui/react";
-import { useTheme } from "next-themes"; // thay cho useColorModeValue
+import { useTheme } from "next-themes";
 import { MdPlayCircle } from "react-icons/md";
 import {
   CircularProgressbarWithChildren,
@@ -57,7 +57,6 @@ export default function ScoreFeedbackCard({
     return { palette: "red" as const, gradeLabel: "Needs practice" };
   }, [score]);
 
-  // Lấy token màu từ Chakra
   const [p500, p400, gray200, whiteAlpha300] = useToken("colors", [
     `${palette}.500`,
     `${palette}.400`,
@@ -65,7 +64,6 @@ export default function ScoreFeedbackCard({
     "whiteAlpha.300",
   ]);
 
-  // Quyết định màu theo theme (v3 không còn useColorModeValue)
   const pathColor = isDark ? p400 : p500;
   const trailColor = isDark ? whiteAlpha300 : gray200;
 
@@ -104,7 +102,6 @@ export default function ScoreFeedbackCard({
       </Card.Header>
 
       <Card.Body>
-        {/* LOADING */}
         {loading && (
           <VStack w="full" gap={6} align="stretch">
             <HStack justify="center" gap={4}>
@@ -122,11 +119,9 @@ export default function ScoreFeedbackCard({
           </VStack>
         )}
 
-        {/* RESULT */}
         {!loading && score !== null && (
           <VStack align="stretch" gap={6}>
             <HStack gap={6} align="center">
-              {/* React Circular Progressbar */}
               <Box w={{ base: "136px", md: "156px" }} h={{ base: "136px", md: "156px" }}>
                 <CircularProgressbarWithChildren
                   value={score}
@@ -140,12 +135,12 @@ export default function ScoreFeedbackCard({
                     strokeLinecap: "round",
                   })}
                 >
-                  {/* CHÚ Ý: Chakra v3 dùng `gap`, không phải `spacing` */}
+                  {/* ↓ nhỏ hơn: giảm fontSize của số % và nhãn */}
                   <VStack gap={0} lineHeight="1" textAlign="center">
-                    <Text fontSize={{ base: "4xl", md: "5xl" }} fontWeight="bold">
+                    <Text fontSize={{ base: "2xl", md: "3xl" }} fontWeight="bold">
                       {score}%
                     </Text>
-                    <Text color="fg.muted" textStyle="xs">
+                    <Text color="fg.muted" textStyle="2xs">
                       {gradeLabel}
                     </Text>
                   </VStack>
@@ -153,7 +148,6 @@ export default function ScoreFeedbackCard({
               </Box>
               <VisuallyHidden aria-live="polite">{`Score ${score} percent`}</VisuallyHidden>
 
-              {/* Tóm tắt */}
               <VStack align="start" gap={2} flex="1" minW={0}>
                 <Text color="fg.muted" textStyle="sm">
                   Tổng kết
@@ -177,7 +171,6 @@ export default function ScoreFeedbackCard({
 
             <Separator />
 
-            {/* Transcript + Play */}
             <Box>
               <Text fontWeight="medium" mb={2}>
                 Your sentence (AI detected)
@@ -204,7 +197,6 @@ export default function ScoreFeedbackCard({
 
             <Separator />
 
-            {/* Mistakes */}
             <Box>
               <Text fontWeight="medium">Mistake Words</Text>
               <Wrap mt={2} gap={2}>
@@ -224,7 +216,6 @@ export default function ScoreFeedbackCard({
 
             <Separator />
 
-            {/* Tip + Teacher */}
             <Box>
               <Text fontWeight="medium" mb={1}>
                 Tip
@@ -246,7 +237,6 @@ export default function ScoreFeedbackCard({
           </VStack>
         )}
 
-        {/* EMPTY */}
         {!loading && score === null && (
           <VStack align="center" gap={3} py={4}>
             <Text color="fg.muted">No score yet. Record and analyze.</Text>
