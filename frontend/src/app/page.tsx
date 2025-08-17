@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useRef } from "react";
 import { Box, Grid } from "@chakra-ui/react";
 import RecordingCard from "@/components/RecordingCard";
@@ -33,7 +32,7 @@ export default function Home() {
         };
 
         mediaRecorder.onstop = async () => {
-          mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+          mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
           setRecording(false);
           setLoading(true);
 
@@ -45,9 +44,10 @@ export default function Home() {
           try {
             const res = await fetch("/api/evaluate", { method: "POST", body: formData });
             const data = await res.json();
+
             setScore(data.score ?? null);
             setMistakes(Array.isArray(data.mistakes) ? data.mistakes : []);
-            setTranscript(data.transcript ?? "");
+            setTranscript(data.transcript ?? "");           // <- transcript cập nhật ở đây
             setTip(data.tip ?? "");
             setTeacherFeedback(data.teacherFeedback ?? "");
           } catch (err) {
@@ -63,13 +63,11 @@ export default function Home() {
         console.error("Mic access error:", err);
       }
     } else {
-      // Stop recording (onstop handler will be triggered)
       mediaRecorderRef.current?.stop();
     }
   };
 
   const nextSentence = async () => {
-    // Reset feedback and score state before fetching a new sentence
     setScore(null);
     setMistakes([]);
     setTranscript("");
@@ -77,7 +75,6 @@ export default function Home() {
     setTeacherFeedback("");
 
     try {
-      // Request a new practice sentence from the backend
       const res = await fetch("/api/sentence", { method: "POST" });
       const data = await res.json();
       setTargetText(data.sentence || "Keine Antwort");
@@ -93,7 +90,6 @@ export default function Home() {
         <RecordingCard
           targetText={targetText}
           recording={recording}
-          transcript={transcript}
           onNextSentence={nextSentence}
           onRecord={handleRecord}
         />
@@ -103,6 +99,7 @@ export default function Home() {
           mistakes={mistakes}
           tip={tip}
           teacherFeedback={teacherFeedback}
+          transcript={transcript}
         />
       </Grid>
     </Box>

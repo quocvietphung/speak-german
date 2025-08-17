@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // 🔄 Convert File -> Blob (to avoid errors when forwarding in Node.js)
+        // Convert File -> Blob (to avoid errors when forwarding in Node.js)
         const bytes = await audio.arrayBuffer();
         const blob = new Blob([bytes], {type: audio.type});
 

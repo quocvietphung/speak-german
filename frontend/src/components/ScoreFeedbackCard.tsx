@@ -12,6 +12,7 @@ import {
   Spinner,
   Card,
   Separator,
+  Textarea,
 } from "@chakra-ui/react";
 
 interface ScoreFeedbackProps {
@@ -20,11 +21,12 @@ interface ScoreFeedbackProps {
   mistakes: string[];
   tip: string;
   teacherFeedback: string;
+  transcript: string;           // <-- nhận transcript tại đây
 }
 
 export default class ScoreFeedbackCard extends React.Component<ScoreFeedbackProps> {
   render() {
-    const { loading, score, mistakes, tip, teacherFeedback } = this.props;
+    const { loading, score, mistakes, tip, teacherFeedback, transcript } = this.props;
 
     return (
       <Card.Root
@@ -45,7 +47,7 @@ export default class ScoreFeedbackCard extends React.Component<ScoreFeedbackProp
               <Text>Analyzing your speech...</Text>
             </HStack>
           ) : score !== null ? (
-            <VStack align="start" gap={5}>
+            <VStack align="start" gap={5} w="full">
               {/* Score */}
               <Text
                 fontSize="4xl"
@@ -55,6 +57,27 @@ export default class ScoreFeedbackCard extends React.Component<ScoreFeedbackProp
                 {score}%
               </Text>
 
+              {/* Transcript (đã chuyển từ RecordingCard sang đây) */}
+              <Box w="full">
+                <Text fontWeight="medium" mb={2}>
+                  Transcript
+                </Text>
+                <Textarea
+                  value={transcript}
+                  readOnly
+                  rows={4}
+                  placeholder="Transcript will appear here..."
+                  bg="gray.50"
+                  borderColor="gray.200"
+                  rounded="lg"
+                  shadow="sm"
+                  _focus={{ borderColor: "blue.400", shadow: "md" }}
+                  fontFamily="ui-monospace, monospace"
+                />
+              </Box>
+
+              <Separator orientation="horizontal" />
+
               {/* Mistakes */}
               <Box w="full">
                 <Text fontWeight="medium">Mistake Words</Text>
@@ -62,7 +85,7 @@ export default class ScoreFeedbackCard extends React.Component<ScoreFeedbackProp
                   {mistakes.length > 0 ? (
                     mistakes.map((w, i) => (
                       <WrapItem key={`${w}-${i}`}>
-                        <Badge colorScheme="red">{w}</Badge>
+                        <Badge colorPalette="red">{w}</Badge>
                       </WrapItem>
                     ))
                   ) : (
