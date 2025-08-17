@@ -1,4 +1,5 @@
 "use client";
+
 import React from "react";
 import {
   Box,
@@ -41,9 +42,11 @@ export default function RecordingCard({
   const handlePlayTarget = () => {
     if ("speechSynthesis" in window) {
       const utterance = new SpeechSynthesisUtterance(targetText);
-      // Nếu câu chứa ký tự Đức, tự chọn giọng de-DE, ngược lại en-US
+      // Auto chọn giọng: có ký tự tiếng Đức -> de-DE, ngược lại en-US
       utterance.lang = /[äöüÄÖÜß]/.test(targetText) ? "de-DE" : "en-US";
-      window.speechSynthesis.cancel(); // dọn hàng đang chờ
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utterance);
     } else {
       console.warn("SpeechSynthesis is not supported in this browser.");
@@ -52,16 +55,25 @@ export default function RecordingCard({
 
   return (
     <Card.Root
+      size="lg"
       p={6}
       rounded="2xl"
-      shadow="xl"
       borderWidth="1px"
-      bgGradient="linear(to-br, white, gray.50)"
+      shadow="xl"
+      // Gradient API mới: bgGradient + gradientFrom/To
+      bgGradient="to-br"
+      gradientFrom="gray.50"
+      gradientTo="gray.100"
+      _dark={{
+        gradientFrom: "gray.800",
+        gradientTo: "gray.900",
+        borderColor: "whiteAlpha.200",
+      }}
     >
       <Card.Header mb={4}>
-        <VStack align="start">
+        <VStack align="start" gap={1}>
           <Heading size="md">🎤 Pronunciation Practice</Heading>
-          <Text fontSize="sm" color="gray.500">
+          <Text color="fg.muted" textStyle="sm">
             Record • Compare • Improve
           </Text>
         </VStack>
@@ -69,20 +81,22 @@ export default function RecordingCard({
 
       <Card.Body>
         <VStack align="center" gap={6} w="full">
-          {/* Hiển thị câu mẫu + nút phát âm */}
-          <Box textAlign="center">
+          {/* Câu mẫu + nút phát âm */}
+          <Box textAlign="center" w="full">
             <Badge colorPalette="blue" rounded="full" px={3} py={1}>
               Target
             </Badge>
-            <HStack justify="center" gap={2} mt={3}>
-              <Text fontSize="xl" fontWeight="semibold" color="gray.800">
+
+            <HStack justify="center" gap={2} mt={3} wrap="wrap">
+              <Text fontSize="xl" fontWeight="semibold">
                 {targetText}
               </Text>
               <IconButton
                 aria-label="Play target audio"
                 rounded="full"
                 size="sm"
-                colorScheme="teal"
+                colorPalette="teal"
+                variant="subtle"
                 onClick={handlePlayTarget}
               >
                 <MdPlayCircle />
@@ -90,7 +104,7 @@ export default function RecordingCard({
             </HStack>
           </Box>
 
-          {/* Nút record lớn + animation */}
+          {/* Nút Record chính + hiệu ứng */}
           <VStack gap={3}>
             <Box position="relative" w="96px" h="96px">
               {recording && (
@@ -113,6 +127,7 @@ export default function RecordingCard({
                   />
                 </>
               )}
+
               <Button
                 onClick={onRecord}
                 aria-pressed={recording}
@@ -121,24 +136,24 @@ export default function RecordingCard({
                 w="96px"
                 h="96px"
                 fontSize="36px"
-                bgGradient={
-                  recording
-                    ? "linear(to-br, red.400, pink.400)"
-                    : "linear(to-br, blue.400, teal.400)"
-                }
+                // Gradient theo API mới
+                bgGradient="to-br"
+                gradientFrom={recording ? "red.400" : "blue.400"}
+                gradientTo={recording ? "pink.400" : "teal.400"}
                 color="white"
                 shadow="2xl"
                 _hover={{ transform: "scale(1.05)" }}
-                _active={{ transform: "scale(0.95)" }}
+                _active={{ transform: "scale(0.96)" }}
               >
                 {recording ? <MdStop /> : <MdMic />}
               </Button>
+
               <VisuallyHidden>
                 <span>{recording ? "Recording…" : "Start recording"}</span>
               </VisuallyHidden>
             </Box>
 
-            {/* Equalizer biểu diễn âm thanh */}
+            {/* Equalizer */}
             <HStack gap={2} h="30px" align="end">
               {[bounce1, bounce2, bounce3].map((anim, i) => (
                 <Box
@@ -147,20 +162,25 @@ export default function RecordingCard({
                   rounded="sm"
                   bg={recording ? "purple.400" : "gray.300"}
                   animation={
-                    recording ? `${anim} 1s ease-in-out ${i * 0.1}s infinite` : undefined
+                    recording
+                      ? `${anim} 1s ease-in-out ${i * 0.1}s infinite`
+                      : undefined
                   }
                 />
               ))}
             </HStack>
 
-            <Text fontSize="sm" color="gray.600">
-              {recording ? "🎙️ Recording…" : "Tap mic to start"}
-            </Text>
+            {/* Trạng thái sống cho screen reader */}
+            <Box aria-live="polite" aria-atomic="true" minH="1.25rem">
+              <Text color="fg.muted" textStyle="sm">
+                {recording ? "🎙️ Recording…" : "Tap mic to start"}
+              </Text>
+            </Box>
           </VStack>
 
-          <Separator orientation="horizontal" />
+          <Separator />
 
-          {/* Nút chuyển câu mới */}
+          {/* Next sentence */}
           <Button
             onClick={onNextSentence}
             colorPalette="teal"
@@ -169,6 +189,7 @@ export default function RecordingCard({
             w="full"
             rounded="xl"
             shadow="md"
+            disabled={recording}
           >
             ➡️ Next Sentence
           </Button>
