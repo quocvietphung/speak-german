@@ -60,13 +60,9 @@ export default function RecordingCard({
       rounded="2xl"
       borderWidth="1px"
       shadow="xl"
-      // Gradient API mới: bgGradient + gradientFrom/To
-      bgGradient="to-br"
-      gradientFrom="gray.50"
-      gradientTo="gray.100"
+      bg="white" // 🌟 nền trắng thay vì gradient
       _dark={{
-        gradientFrom: "gray.800",
-        gradientTo: "gray.900",
+        bg: "gray.800",
         borderColor: "whiteAlpha.200",
       }}
     >
@@ -136,7 +132,6 @@ export default function RecordingCard({
                 w="96px"
                 h="96px"
                 fontSize="36px"
-                // Gradient theo API mới
                 bgGradient="to-br"
                 gradientFrom={recording ? "red.400" : "blue.400"}
                 gradientTo={recording ? "pink.400" : "teal.400"}
