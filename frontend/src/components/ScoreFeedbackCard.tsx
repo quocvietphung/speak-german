@@ -92,7 +92,7 @@ export default function ScoreFeedbackCard({
           <VStack align="start" gap={1}>
             <Heading size="md">📊 Score & Feedback</Heading>
             <Text color="fg.muted" textStyle="sm">
-              Tự động chấm phát âm & gợi ý cải thiện
+              Automatic pronunciation scoring & improvement tips
             </Text>
           </VStack>
           <Badge colorPalette={palette} variant="subtle" rounded="full" px={3} py={1}>
@@ -135,7 +135,6 @@ export default function ScoreFeedbackCard({
                     strokeLinecap: "round",
                   })}
                 >
-                  {/* ↓ nhỏ hơn: giảm fontSize của số % và nhãn */}
                   <VStack gap={0} lineHeight="1" textAlign="center">
                     <Text fontSize={{ base: "2xl", md: "3xl" }} fontWeight="bold">
                       {score}%
@@ -150,13 +149,13 @@ export default function ScoreFeedbackCard({
 
               <VStack align="start" gap={2} flex="1" minW={0}>
                 <Text color="fg.muted" textStyle="sm">
-                  Tổng kết
+                  Summary
                 </Text>
                 <Text>
-                  Điểm phát âm của bạn: <b>{score}%</b>.{" "}
+                  Your pronunciation score: <b>{score}%</b>.{" "}
                   {gradeLabel === "Needs practice"
-                    ? "Hãy xem lại các từ sai và luyện chậm từng cụm."
-                    : "Tiếp tục duy trì nhịp điệu & độ rõ ràng!"}
+                    ? "Review the mistakes and practice slowly in chunks."
+                    : "Keep up the rhythm and clarity!"}
                 </Text>
                 <HStack gap={3} flexWrap="wrap">
                   <Badge colorPalette={mistakes.length ? "red" : "green"} variant="surface" rounded="md">
