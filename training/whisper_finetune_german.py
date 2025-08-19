@@ -4,7 +4,7 @@ import torch
 import evaluate
 import numpy as np
 from dataclasses import dataclass
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List
 
 from datasets import load_dataset, Audio
 from transformers import (
@@ -16,21 +16,21 @@ from transformers import (
 
 # 🤖 2. Config
 MODEL_ID = "openai/whisper-large-v3"
-OUTPUT_DIR = "./whisper_de_finetune"
+OUTPUT_DIR = "./training/models/whisper_de_finetune"
 
-# Dataset: Common Voice 13.0 (German)
-dataset = load_dataset("mozilla-foundation/common_voice_13_0", "de", split="train+validation")
+# Load dataset Common Voice 13.0 (German)
+train_dataset = load_dataset("mozilla-foundation/common_voice_13_0", "de", split="train+validation")
 eval_dataset = load_dataset("mozilla-foundation/common_voice_13_0", "de", split="test")
 
-# Cast audio
-dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
+# Chuẩn hóa audio 16kHz
+train_dataset = train_dataset.cast_column("audio", Audio(sampling_rate=16000))
 eval_dataset = eval_dataset.cast_column("audio", Audio(sampling_rate=16000))
 
 # 🤖 3. Load processor + model
 processor = WhisperProcessor.from_pretrained(MODEL_ID, language="de", task="transcribe")
 model = WhisperForConditionalGeneration.from_pretrained(MODEL_ID)
 
-# Optional: freeze encoder để train nhanh hơn
+# Freeze encoder (tùy chọn, giúp train nhanh hơn và giảm overfitting)
 model.freeze_encoder()
 
 # 🤖 4. Preprocess function
@@ -46,8 +46,16 @@ def prepare_dataset(batch):
     batch["labels"] = processor.tokenizer(batch["sentence"]).input_ids
     return batch
 
-dataset = dataset.map(prepare_dataset, remove_columns=dataset.column_names, num_proc=4)
-eval_dataset = eval_dataset.map(prepare_dataset, remove_columns=eval_dataset.column_names, num_proc=4)
+train_dataset = train_dataset.map(
+    prepare_dataset,
+    remove_columns=train_dataset.column_names,
+    num_proc=4
+)
+eval_dataset = eval_dataset.map(
+    prepare_dataset,
+    remove_columns=eval_dataset.column_names,
+    num_proc=4
+)
 
 # 🤖 5. Data collator
 @dataclass
@@ -61,6 +69,7 @@ class DataCollatorSpeechSeq2SeqWithPadding:
         batch = self.processor.feature_extractor.pad(input_features, return_tensors="pt")
         labels_batch = self.processor.tokenizer.pad(label_features, return_tensors="pt")
 
+        # Replace padding with -100 để tránh tính loss
         labels = labels_batch["input_ids"].masked_fill(labels_batch.attention_mask.ne(1), -100)
         batch["labels"] = labels
         return batch
@@ -105,7 +114,7 @@ training_args = Seq2SeqTrainingArguments(
 trainer = Seq2SeqTrainer(
     args=training_args,
     model=model,
-    train_dataset=dataset,
+    train_dataset=train_dataset,
     eval_dataset=eval_dataset,
     data_collator=data_collator,
     tokenizer=processor.tokenizer,
