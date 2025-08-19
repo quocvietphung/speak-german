@@ -1,124 +1,120 @@
+# 🤖 1. Import libraries
 import os
-import matplotlib.pyplot as plt
-import librosa
-import pandas as pd
-from datasets import load_dataset
+import torch
+import evaluate
+import numpy as np
+from dataclasses import dataclass
+from typing import Any, Dict, List, Union
+
+from datasets import load_dataset, Audio
 from transformers import (
-    WhisperConfig,
     WhisperProcessor,
     WhisperForConditionalGeneration,
     Seq2SeqTrainer,
-    Seq2SeqTrainingArguments,
-    TrainerCallback
+    Seq2SeqTrainingArguments
 )
-import evaluate
-import torch
 
-class LossHistoryCallback(TrainerCallback):
-    def __init__(self):
-        self.train_loss = []
-        self.eval_loss = []
-        self.steps = []
-    def on_log(self, args, state, control, logs=None, **kwargs):
-        if logs is None:
-            return
-        self.steps.append(state.global_step)
-        if "loss" in logs:
-            self.train_loss.append(logs["loss"])
-        if "eval_loss" in logs:
-            self.eval_loss.append(logs["eval_loss"])
+# 🤖 2. Config
+MODEL_ID = "openai/whisper-large-v3"
+OUTPUT_DIR = "./whisper_de_finetune"
 
-def compute_metrics(pred, processor, wer_metric):
-    pred_str = processor.batch_decode(pred.predictions, skip_special_tokens=True)
-    label_str = processor.batch_decode(pred.label_ids, skip_special_tokens=True)
-    wer = wer_metric.compute(predictions=pred_str, references=label_str)
-    acc = sum(p.strip() == l.strip() for p, l in zip(pred_str, label_str)) / len(pred_str)
-    return {"wer": wer, "accuracy": acc}
+# Dataset: Common Voice 13.0 (German)
+dataset = load_dataset("mozilla-foundation/common_voice_13_0", "de", split="train+validation")
+eval_dataset = load_dataset("mozilla-foundation/common_voice_13_0", "de", split="test")
 
-def main():
-    ds = load_dataset(
-        "mozilla-foundation/common_voice_13_0",
-        "de",
-        split="train+validation",
-        trust_remote_code=True
-    )
-    ds = ds.map(lambda x: {"text": x["sentence"]}, batched=False)
-    ds = ds.train_test_split(test_size=0.1)
+# Cast audio
+dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
+eval_dataset = eval_dataset.cast_column("audio", Audio(sampling_rate=16000))
 
-    processor = WhisperProcessor.from_pretrained(
-        "openai/whisper-small", language="German", task="transcribe"
-    )
-    config = WhisperConfig.from_pretrained("openai/whisper-small")
-    config.dropout = 0.1
-    config.attention_dropout = 0.1
-    model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-small", config=config)
+# 🤖 3. Load processor + model
+processor = WhisperProcessor.from_pretrained(MODEL_ID, language="de", task="transcribe")
+model = WhisperForConditionalGeneration.from_pretrained(MODEL_ID)
 
+# Optional: freeze encoder để train nhanh hơn
+model.freeze_encoder()
 
-    def preprocess_fn(x):
-        audio = x["audio"]
+# 🤖 4. Preprocess function
+def prepare_dataset(batch):
+    audio = batch["audio"]
 
-        if audio["sampling_rate"] != 16000:
-            audio_array = librosa.resample(
-                audio["array"], orig_sr=audio["sampling_rate"], target_sr=16000
-            )
-            sampling_rate = 16000
-        else:
-            audio_array = audio["array"]
-            sampling_rate = audio["sampling_rate"]
+    # Extract features
+    batch["input_features"] = processor.feature_extractor(
+        audio["array"], sampling_rate=16000
+    ).input_features[0]
 
-        # Extract features
-        inputs = processor.feature_extractor(audio_array, sampling_rate=sampling_rate)
-        return {
-            "input_features": inputs.input_features[0],
-            "labels": processor.tokenizer(x["text"]).input_ids
-        }
+    # Encode target text
+    batch["labels"] = processor.tokenizer(batch["sentence"]).input_ids
+    return batch
 
-    ds = ds.map(preprocess_fn, remove_columns=ds["train"].column_names, num_proc=2)
+dataset = dataset.map(prepare_dataset, remove_columns=dataset.column_names, num_proc=4)
+eval_dataset = eval_dataset.map(prepare_dataset, remove_columns=eval_dataset.column_names, num_proc=4)
 
-    wer_metric = evaluate.load("wer")
+# 🤖 5. Data collator
+@dataclass
+class DataCollatorSpeechSeq2SeqWithPadding:
+    processor: WhisperProcessor
 
-    training_args = Seq2SeqTrainingArguments(
-        output_dir="whisper-finetuned",
-        per_device_train_batch_size=4 ,
-        learning_rate=1e-5,
-        optim="adamw_hf",
-        weight_decay=0.01,
-        num_train_epochs=3,
-        evaluation_strategy="steps",
-        eval_steps=200,
-        logging_steps=50,
-        save_steps=500,
-        fp16=torch.cuda.is_available(),
-        report_to="tensorboard",
-        logging_dir="runs"
-    )
+    def __call__(self, features: List[Dict[str, Any]]) -> Dict[str, Any]:
+        input_features = [{"input_features": f["input_features"]} for f in features]
+        label_features = [{"input_ids": f["labels"]} for f in features]
 
-    loss_cb = LossHistoryCallback()
-    trainer = Seq2SeqTrainer(
-        model=model,
-        args=training_args,
-        train_dataset=ds["train"],
-        eval_dataset=ds["test"],
-        tokenizer=processor.feature_extractor,
-        compute_metrics=lambda p: compute_metrics(p, processor, wer_metric),
-        callbacks=[loss_cb]
-    )
+        batch = self.processor.feature_extractor.pad(input_features, return_tensors="pt")
+        labels_batch = self.processor.tokenizer.pad(label_features, return_tensors="pt")
 
-    trainer.train()
-    eval_res = trainer.evaluate()
-    print("Evaluation results:", eval_res)
+        labels = labels_batch["input_ids"].masked_fill(labels_batch.attention_mask.ne(1), -100)
+        batch["labels"] = labels
+        return batch
 
-    plt.figure(figsize=(8, 4))
-    plt.plot(loss_cb.steps, loss_cb.train_loss, label="Train Loss")
-    plt.plot(loss_cb.steps[:len(loss_cb.eval_loss)], loss_cb.eval_loss, label="Eval Loss")
-    plt.xlabel("Steps")
-    plt.ylabel("Loss")
-    plt.legend()
-    plt.title("Train vs Validation Loss")
-    plt.show()
+data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
 
-    df = pd.DataFrame(trainer.state.log_history)
-    print(df[['step', 'loss', 'eval_loss', 'wer', 'accuracy']])
+# 🤖 6. Metric WER
+wer_metric = evaluate.load("wer")
 
-if __name__ == "__main__":
-    main()
+def compute_metrics(pred):
+    pred_ids = pred.predictions
+    label_ids = pred.label_ids
+
+    pred_str = processor.tokenizer.batch_decode(pred_ids, skip_special_tokens=True)
+    label_ids[label_ids == -100] = processor.tokenizer.pad_token_id
+    label_str = processor.tokenizer.batch_decode(label_ids, skip_special_tokens=True)
+
+    return {"wer": wer_metric.compute(predictions=pred_str, references=label_str)}
+
+# 🤖 7. Training args
+training_args = Seq2SeqTrainingArguments(
+    output_dir=OUTPUT_DIR,
+    per_device_train_batch_size=8,
+    per_device_eval_batch_size=8,
+    gradient_accumulation_steps=2,
+    evaluation_strategy="steps",
+    save_strategy="steps",
+    save_total_limit=2,
+    learning_rate=1e-5,
+    warmup_steps=500,
+    num_train_epochs=5,
+    logging_steps=50,
+    eval_steps=200,
+    predict_with_generate=True,
+    generation_max_length=225,
+    fp16=torch.cuda.is_available(),
+    push_to_hub=False,
+    report_to=["tensorboard"]
+)
+
+# 🤖 8. Trainer
+trainer = Seq2SeqTrainer(
+    args=training_args,
+    model=model,
+    train_dataset=dataset,
+    eval_dataset=eval_dataset,
+    data_collator=data_collator,
+    tokenizer=processor.tokenizer,
+    compute_metrics=compute_metrics,
+)
+
+# 🤖 9. Train
+trainer.train()
+
+# 🤖 10. Save
+trainer.save_model(OUTPUT_DIR)
+processor.save_pretrained(OUTPUT_DIR)
