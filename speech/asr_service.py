@@ -8,12 +8,12 @@ from jiwer import wer, cer
 # ===============================
 # Default model (German Whisper)
 # ===============================
-DEFAULT_MODEL = "primeline/whisper-large-v3-turbo-german"
+DEFAULT_MODEL = "openai/whisper-tiny"
 
 # ===============================
 # Load Whisper ASR Model
 # ===============================
-def load_model(model_id=DEFAULT_MODEL, model_dir="./models/whisper_de"):
+def load_model(model_id=DEFAULT_MODEL, model_dir="./models/whisper_tiny_de"):
     """
     Download (if needed) and load Whisper model for German ASR.
     """
