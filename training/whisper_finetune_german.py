@@ -20,10 +20,10 @@ from transformers import (
 # Optional: LoRA / Adapters (PEFT)
 from peft import get_peft_model, LoraConfig, TaskType  # pip install peft
 
-# 2. Config & Cache
+# 2. Config
 MODEL_ID = "openai/whisper-large-v3"
-OUTPUT_DIR = "./training/models/whisper_de_finetune"
-os.environ["HF_HOME"] = "./training/datasets"
+OUTPUT_DIR = "./models/whisper_de_finetune"   # 🔹 model lưu ở training
+os.environ["HF_HOME"] = "./datasets"                   # 🔹 dataset/cache ở ./datasets
 
 # 3. Load dataset (subset)
 common_voice_train = load_dataset("mozilla-foundation/common_voice_13_0", "de",
@@ -39,7 +39,7 @@ processor = WhisperProcessor.from_pretrained(MODEL_ID, language="de", task="tran
 model = WhisperForConditionalGeneration.from_pretrained(MODEL_ID)
 model.freeze_encoder()
 
-# Optional: apply LoRA to reduce parameters (PEFT)
+# Optional: apply LoRA (PEFT)
 peft_config = LoraConfig(
     task_type=TaskType.SEQ_2_SEQ_LM,
     inference_mode=False,
@@ -72,12 +72,11 @@ class DataCollatorSpeechSeq2SeqWithPadding:
 
 data_collator = DataCollatorSpeechSeq2SeqWithPadding(processor=processor)
 
-# 7. Metrics: WER, CER, SER, BERTScore, H_eval
+# 7. Metrics: WER, CER, SER, BERTScore
 wer_metric = evaluate.load("wer")
 cer_metric = evaluate.load("cer")
 ser_metric = evaluate.load("ser")  # Sentence Error Rate
 bert_score = evaluate.load("bertscore")
-# H_eval not available in evaluate; placeholder to compute externally if needed
 
 def compute_metrics(pred):
     pred_ids = pred.predictions
