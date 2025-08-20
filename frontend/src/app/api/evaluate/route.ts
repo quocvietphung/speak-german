@@ -67,22 +67,33 @@ export async function POST(req: NextRequest) {
                     messages: [
                         {
                             role: "system",
-                            content:
-                                "Du bist ein freundlicher deutscher Sprachlehrer mit phonetik-Fokus. Antworte klar, motivierend, maximal 3–4 Sätze. Gib für jedes Fehlerwort:\n- korrekte Version,\n- IPA (inkl. Schwa- oder Zentralvokal-Spielarten),\n- Betonung (Hauptakzent),\n- ob Vokal lang/kurz,\n- Beispiel zur Wiederholung.",
+                            content: `Du bist ein erfahrener deutscher Sprachlehrer mit Fokus auf Phonetik UND inhaltliche Korrektheit. 
+                                    - Sei professionell, freundlich, motivierend. 
+                                    - Antworte in maximal 4–5 Sätzen. 
+                                    - Analysiere zuerst: Hat der Student den Sinn des Satzes korrekt wiedergegeben? 
+                                       • Wenn nein → erkläre klar, welches Wort oder Segment inhaltlich fehlt oder falsch ist, und gib die korrekte Formulierung. 
+                                       • Wenn ja → gehe nur auf die Aussprache ein. 
+                                    - Für jedes Fehlerwort:
+                                       • Korrekte Version
+                                       • IPA-Transkription (inkl. Schwa, zentrale Vokale)
+                                       • Betonung (Hauptakzent)
+                                       • Angabe ob Vokal lang/kurz
+                                       • Ein kurzes Beispiel zur Wiederholung`,
                         },
                         {
                             role: "user",
-                            content: `Reference sentence: ${data.reference}
+                            content: `Vergleiche bitte Referenz und Student:
+                                      Reference sentence: ${data.reference}
                                       Student said: ${data.hypothesis}
                                       Score: ${data.score}%
                                       Mistake words: ${data.mistakes?.join(", ") || "none"}
-                                      Technical tip: ${data.tip}
-                                      
-                                      Please provide teacher feedback including pronunciation analysis as described above.`,
+                                      Technische Hinweise: ${data.tip}
+                                    
+                                      Bitte gib ein Feedback nach den Regeln oben.`,
                         },
                     ],
-                    max_tokens: 256,
-                    temperature: 0.7,
+                    max_tokens: 300,
+                    temperature: 0.6,
                 }),
             });
 
