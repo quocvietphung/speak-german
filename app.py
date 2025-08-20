@@ -6,6 +6,8 @@ import traceback
 import tempfile
 import subprocess
 import os
+import time
+import ollama
 
 # ===============================
 # Initialize Flask App
@@ -26,6 +28,30 @@ print("[+] Model loaded and ready!")
 @app.route("/api/hello", methods=["GET"])
 def hello_api():
     return jsonify({"message": "Hello from Flask API!"}), 200
+
+
+# ===============================
+# API: Generate German sentence
+# ===============================
+@app.route("/api/sentence", methods=["GET"])
+def generate_sentence():
+    try:
+        prompt = "Gib mir einen kurzen einfachen deutschen Satz zum Üben."
+        response = ollama.chat(
+            model="llama3",
+            messages=[
+                {"role": "system", "content": "Du bist ein Deutschlehrer."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        sentence = response["message"]["content"].strip()
+        return jsonify({
+            "sentence": sentence,
+            "timestamp": int(time.time())
+        }), 200
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 
 # ===============================
