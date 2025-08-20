@@ -57,7 +57,7 @@ def load_model(model_id=DEFAULT_MODEL, model_dir="./models/whisper_de"):
         tokenizer=processor.tokenizer,
         feature_extractor=processor.feature_extractor,
         device=device_idx,
-        chunk_length_s=30,
+        chunk_length_s=10,
         stride_length_s=(4, 2),
     )
 
