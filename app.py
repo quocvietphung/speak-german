@@ -96,19 +96,54 @@ def evaluate_api():
         result = transcribe(asr, data, language="de")
         hyp_text = result.get("text", "").strip()
 
-        score, mistakes, tip = None, [], ""
+        score, mistakes, tip, teacher_feedback = None, [], "", ""
+
         if ref_text:
             metrics = score_pronunciation(ref_text, hyp_text)
             score = metrics.get("PronunciationScore")
             mistakes = [m["word"] for m in metrics.get("mistake_words", [])]
             tip = metrics.get("mistake_words", [{}])[0].get("tip", "") if metrics.get("mistake_words") else ""
 
+            # Generate teacher-like feedback via Ollama (phonetics-focused)
+            feedback_prompt = f"""
+            Du bist ein freundlicher deutscher Sprachlehrer mit Fokus auf Phonetik.
+            Analysiere die Aussprache des Schülers und gib klares, motivierendes Feedback.
+
+            Referenzsatz: {ref_text}
+            Gesprochen: {hyp_text}
+            Bewertung: {score}%
+            Fehlerwörter: {', '.join(mistakes) if mistakes else 'Keine'}
+
+            Anforderungen für jedes Fehlerwort:
+            - Korrekte Version
+            - IPA-Aussprache (inkl. Schwa oder zentrale Vokale)
+            - Betonung (Hauptakzent)
+            - Ob Vokal lang oder kurz
+            - Beispiel zur Wiederholung (z.B. ein ähnliches deutsches Wort oder Mini-Satz)
+
+            Danach fasse in 2-3 motivierenden Sätzen zusammen,
+            was der Schüler gut gemacht hat und was er verbessern sollte.
+            """
+            try:
+                response = ollama.chat(
+                    model="llama3",
+                    messages=[
+                        {"role": "system", "content": "Du bist ein Deutschlehrer mit Phonetik-Expertise."},
+                        {"role": "user", "content": feedback_prompt}
+                    ]
+                )
+                teacher_feedback = response["message"]["content"].strip()
+            except Exception as e:
+                teacher_feedback = "Feedback konnte nicht generiert werden."
+
+        # ==== DEBUG LOG ====
         print("\n=== DEBUG /api/evaluate ===")
         print("Reference:", ref_text)
         print("Hypothesis:", hyp_text)
         print("Score:", score)
         print("Mistakes:", mistakes)
         print("Tip:", tip)
+        print("Teacher feedback:", teacher_feedback)
         print("============================\n")
 
         return jsonify({
@@ -116,7 +151,8 @@ def evaluate_api():
             "hypothesis": hyp_text,
             "score": score,
             "mistakes": mistakes,
-            "tip": tip
+            "tip": tip,
+            "teacher_feedback": teacher_feedback
         }), 200
 
     except Exception as e:
