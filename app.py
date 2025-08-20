@@ -37,7 +37,6 @@ def convert_webm_to_wav(audio_bytes):
         tmp_in.write(audio_bytes)
         tmp_in.flush()
 
-        # convert bằng ffmpeg
         subprocess.run([
             "ffmpeg", "-y", "-i", tmp_in.name,
             "-ar", "16000", "-ac", "1", tmp_out.name
