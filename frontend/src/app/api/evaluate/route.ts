@@ -37,7 +37,6 @@ export async function POST(req: NextRequest) {
 
     const data = await backendRes.json();
 
-    // Trả nguyên kết quả từ Flask
     return NextResponse.json(data);
   } catch (err: any) {
     return NextResponse.json(
