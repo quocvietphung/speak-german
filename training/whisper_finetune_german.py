@@ -164,15 +164,14 @@ training_args = Seq2SeqTrainingArguments(
 )
 
 # =========================
-# 7) Trainer
+# 7) Trainer (chỉ train, không eval để tiết kiệm RAM)
 # =========================
 trainer = Seq2SeqTrainer(
     model=model,
     args=training_args,
     train_dataset=common_voice["train"],
-    eval_dataset=None,               # tắt eval lúc train để đỡ OOM
+    eval_dataset=None,               # không dùng validation lúc train
     data_collator=data_collator,
-    # compute_metrics=compute_metrics,  # bật khi có eval_dataset
 )
 
 # =========================
@@ -180,22 +179,23 @@ trainer = Seq2SeqTrainer(
 # =========================
 trainer.train()
 
-# Khi ổn, bạn có thể đánh giá WER:
-# trainer = Seq2SeqTrainer(
-#     model=model,
-#     args=training_args,
-#     train_dataset=common_voice["train"],
-#     eval_dataset=common_voice["validation"],
-#     data_collator=data_collator,
-#     compute_metrics=compute_metrics,
-# )
-# print(trainer.evaluate())
+# =========================
+# 9) Evaluate (tạo lại trainer với validation)
+# =========================
+eval_trainer = Seq2SeqTrainer(
+    model=model,
+    args=training_args,
+    eval_dataset=common_voice["validation"],
+    data_collator=data_collator,
+    compute_metrics=compute_metrics,
+)
 
-# --- Evaluate sau training ---
-metrics = trainer.evaluate()
+metrics = eval_trainer.evaluate()
 print("Eval metrics:", metrics)
 
-# Nếu muốn test trên 1 mẫu audio
+# =========================
+# 10) Test trên 1 mẫu audio
+# =========================
 sample = common_voice["validation"][0]
 input_features = sample["input_features"].unsqueeze(0).to(model.device)
 
@@ -203,5 +203,5 @@ with torch.no_grad():
     predicted_ids = model.generate(input_features)
     transcription = processor.batch_decode(predicted_ids, skip_special_tokens=True)
 
-print("Reference:", sample["labels"])
+print("Reference:", processor.decode(sample["labels"], skip_special_tokens=True))
 print("Prediction:", transcription)
