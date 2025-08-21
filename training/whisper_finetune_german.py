@@ -179,29 +179,63 @@ trainer = Seq2SeqTrainer(
 # =========================
 trainer.train()
 
-# =========================
-# 9) Evaluate (tạo lại trainer với validation)
-# =========================
-eval_trainer = Seq2SeqTrainer(
-    model=model,
-    args=training_args,
-    eval_dataset=common_voice["validation"],
-    data_collator=data_collator,
-    compute_metrics=compute_metrics,
-)
+import numpy as np
 
-metrics = eval_trainer.evaluate()
+# =========================
+# 9) Eval thủ công (không dùng Trainer.evaluate)
+# =========================
+def eval_streaming(model, dataset, processor, wer_metric, max_new_tokens=64):
+    model.eval()
+    wers = []
+
+    for i in range(len(dataset)):
+        sample = dataset[i]
+
+        # input_features đã được collator pad về [80,3000]
+        x = sample["input_features"].unsqueeze(0).to(model.device)
+
+        # sinh prediction
+        with torch.no_grad():
+            pred_ids = model.generate(
+                x,
+                max_new_tokens=max_new_tokens,
+                num_beams=1,
+                do_sample=False
+            )
+
+        # decode prediction + reference
+        pred_str = processor.batch_decode(pred_ids, skip_special_tokens=True)[0]
+
+        # ⚠️ Ở preprocess bạn lưu nhãn dạng token vào `labels` chứ không giữ text,
+        # nên ta decode lại labels để có reference string
+        ref_str = processor.decode(sample["labels"], skip_special_tokens=True)
+
+        # tính WER cho sample này
+        wer_val = wer_metric.compute(predictions=[pred_str], references=[ref_str])
+        wers.append(wer_val)
+
+        # giải phóng bộ nhớ MPS
+        del x, pred_ids
+        if torch.backends.mps.is_available():
+            torch.mps.empty_cache()
+
+    return {"wer": float(np.mean(wers))}
+
+# =========================
+# Gọi function để eval
+# =========================
+metrics = eval_streaming(model, common_voice["validation"], processor, wer_metric, max_new_tokens=64)
 print("Eval metrics:", metrics)
 
 # =========================
-# 10) Test trên 1 mẫu audio
+# 10) Test nhanh trên 1 mẫu audio
 # =========================
 sample = common_voice["validation"][0]
-input_features = sample["input_features"].unsqueeze(0).to(model.device)
+inp = sample["input_features"].unsqueeze(0).to(model.device)
 
 with torch.no_grad():
-    predicted_ids = model.generate(input_features)
-    transcription = processor.batch_decode(predicted_ids, skip_special_tokens=True)
+    gen_ids = model.generate(inp, max_new_tokens=64)
+    transcription = processor.batch_decode(gen_ids, skip_special_tokens=True)
 
 print("Reference:", processor.decode(sample["labels"], skip_special_tokens=True))
 print("Prediction:", transcription)
