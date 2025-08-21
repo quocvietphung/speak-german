@@ -52,7 +52,7 @@ def build_asr_pipeline(model_dir: str):
 # Load both models
 # ===============================
 asr_base = build_asr_pipeline(MODEL_BASE)
-asr_ft   = build_asr_pipeline(MODEL_FT)
+asr_fine_tuned   = build_asr_pipeline(MODEL_FT)
 
 # ===============================
 # Transcription

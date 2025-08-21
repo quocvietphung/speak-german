@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from service.asr_service import asr_base, asr_ft, transcribe, score_pronunciation
+from service.asr_service import asr_base, asr_fine_tuned, transcribe, score_pronunciation
 import soundfile as sf
 import traceback
 import tempfile
@@ -63,7 +63,7 @@ def evaluate_api():
         # Read audio and reference text from request
         audio_bytes = request.files["audio"].read()
         ref_text = request.form.get("target_text", "").strip()
-        model_id = request.form.get("model_id", "ft")  # default = fine-tuned
+        model_id = request.form.get("model_id", "fine_tuned")  # default = fine-tuned
 
         # Convert WebM → WAV
         data, samplerate = convert_webm_to_wav(audio_bytes)
@@ -71,8 +71,10 @@ def evaluate_api():
         # Select which ASR model to use
         if model_id == "base":
             asr = asr_base
+        elif model_id == "fine_tuned":
+            asr = asr_fine_tuned
         else:
-            asr = asr_ft
+            return jsonify({"error": f"Invalid model_id '{model_id}'"}), 400
 
         # Run transcription
         result = transcribe(asr, data, language="de")
