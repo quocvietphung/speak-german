@@ -52,7 +52,7 @@ def load_model(model_id=DEFAULT_MODEL, model_dir="./models/whisper_tiny_de"):
     processor = AutoProcessor.from_pretrained(model_dir)
 
     return pipeline(
-        "automatic-speech-recognition",
+        "automatic-service-recognition",
         model=model,
         tokenizer=processor.tokenizer,
         feature_extractor=processor.feature_extractor,
@@ -66,7 +66,7 @@ def load_model(model_id=DEFAULT_MODEL, model_dir="./models/whisper_tiny_de"):
 # ===============================
 def transcribe(asr_pipeline, audio_input, language="de", timestamps=False):
     """
-    Run speech-to-text transcription.
+    Run service-to-text transcription.
     audio_input: numpy array hoặc path đến file âm thanh
     """
     return asr_pipeline(

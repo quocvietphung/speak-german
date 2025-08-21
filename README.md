@@ -40,8 +40,8 @@ It uses state-of-the-art AI models (Whisper, Azure OpenAI) to transcribe spoken 
 
 Clone the repository and install dependencies:
 ```bash
-git clone https://github.com/your-username/german-speech-ai.git
-cd german-speech-ai
+git clone https://github.com/quocvietphung/speak-german.git
+cd speak-german
 python -m venv .venv
 source .venv/bin/activate   # On Linux/Mac
 .venv\Scripts\activate      # On Windows

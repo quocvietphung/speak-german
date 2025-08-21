@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from speech.asr_service import load_model, transcribe, score_pronunciation
+from service.asr_service import load_model, transcribe, score_pronunciation
 import soundfile as sf
 import traceback
 import tempfile
