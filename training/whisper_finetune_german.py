@@ -62,8 +62,18 @@ if forced_ids is not None:
 # 3) Dataset (lọc <=15s)
 # =========================
 common_voice = DatasetDict({
-    "train":       load_dataset("mozilla-foundation/common_voice_13_0", "de", split="train[:1%]"),
-    "validation":  load_dataset("mozilla-foundation/common_voice_13_0", "de", split="validation[:1%]"),
+    "train": load_dataset(
+        "mozilla-foundation/common_voice_13_0",
+        "de",
+        split="train[:1%]",
+        trust_remote_code=True
+    ),
+    "validation": load_dataset(
+        "mozilla-foundation/common_voice_13_0",
+        "de",
+        split="validation[:1%]",
+        trust_remote_code=True
+    ),
 })
 common_voice = common_voice.cast_column("audio", Audio(sampling_rate=SR))
 
