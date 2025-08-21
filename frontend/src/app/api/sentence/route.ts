@@ -7,7 +7,18 @@ export async function POST(req: NextRequest) {
   const deployment = process.env.AZURE_OPENAI_DEPLOYMENT_NAME!;
   const apiVersion = process.env.AZURE_OPENAI_API_VERSION!;
 
-  // Construct the Azure OpenAI API URL
+  const topics = [
+    "Reisen und Urlaub",
+    "Arbeit und Karriere",
+    "Essen und Trinken",
+    "Gesundheit und Sport",
+    "Familie und Freunde",
+    "Technologie und Zukunft",
+    "Kunst und Kultur",
+    "Natur und Umwelt",
+  ];
+  const randomTopic = topics[Math.floor(Math.random() * topics.length)];
+
   const url = `${endpoint}openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`;
 
   try {
@@ -23,16 +34,24 @@ export async function POST(req: NextRequest) {
           {
             role: "system",
             content:
-              "Du bist ein Deutschlehrer. Antworte nur mit einem kurzen einfachen deutschen Satz.",
+              "Du bist ein erfahrener Deutschlehrer. " +
+              "Antworte jedes Mal nur mit genau EINEM Beispielsatz. " +
+              "Der Satz soll thematisch passen und natürlich klingen.",
           },
-          { role: "user", content: "Gib mir einen Beispielsatz zum Üben." },
+          {
+            role: "user",
+            content: `Bitte gib mir einen Beispielsatz zum Thema: "${randomTopic}".`,
+          },
         ],
-        max_tokens: 64,
-        temperature: 0.7,
+        max_tokens: 80,
+        temperature: 0.8,
       }),
     });
 
-    // Parse the response from Azure OpenAI
+    if (!res.ok) {
+      throw new Error(`Azure OpenAI request failed with status ${res.status}`);
+    }
+
     const data = await res.json();
 
     // Extract the generated sentence or provide a fallback message
@@ -40,8 +59,7 @@ export async function POST(req: NextRequest) {
       data?.choices?.[0]?.message?.content?.trim() ||
       "Keine Antwort von Azure OpenAI.";
 
-    // Return the generated sentence as a JSON response
-    return NextResponse.json({ sentence });
+    return NextResponse.json({ topic: randomTopic, sentence });
   } catch (err: any) {
     // Handle errors and return a 500 response
     console.error("Azure OpenAI API error:", err.message);
