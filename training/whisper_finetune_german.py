@@ -25,7 +25,7 @@ import numpy as np
 # =========================
 MODEL_ID   = "openai/whisper-tiny"
 OUT_DIR    = "./whisper-tiny-de-test"
-CKPT_PATH  = os.path.join(OUT_DIR, "checkpoint-final")
+CKPT_PATH  = os.path.join(OUT_DIR, "whisper_tiny_de_finetuned")
 LANG       = "de"
 TASK       = "transcribe"
 SR         = 16000
@@ -210,7 +210,7 @@ if os.path.exists(CKPT_PATH) and os.path.isfile(os.path.join(CKPT_PATH, "pytorch
 # =========================
 # 7) Training args
 #   - QUAN TRỌNG: remove_unused_columns=False để giữ labels_text tới collator
-#   - Vô hiệu hoá checkpoint trung gian: chỉ lưu checkpoint-final duy nhất
+#   - Vô hiệu hoá checkpoint trung gian: chỉ lưu whisper_tiny_de_finetuned duy nhất
 # =========================
 training_args = Seq2SeqTrainingArguments(
     output_dir=OUT_DIR,
@@ -242,14 +242,14 @@ trainer = Seq2SeqTrainer(
 )
 
 # =========================
-# 9) Kiểm tra nếu checkpoint-final đã có → bỏ qua training, chạy eval luôn
-#    Nếu chưa có → train rồi lưu checkpoint-final
+# 9) Kiểm tra nếu whisper_tiny_de_finetuned đã có → bỏ qua training, chạy eval luôn
+#    Nếu chưa có → train rồi lưu whisper_tiny_de_finetuned
 # =========================
 if _has_full_processor(CKPT_PATH):
     print(f"Checkpoint-final found at {CKPT_PATH}, skipping training.")
 else:
     trainer.train()
-    # Lưu duy nhất checkpoint-final sau khi train xong
+    # Lưu duy nhất whisper_tiny_de_finetuned sau khi train xong
     os.makedirs(CKPT_PATH, exist_ok=True)
     trainer.save_model(CKPT_PATH)
     model.save_pretrained(CKPT_PATH)

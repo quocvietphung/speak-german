@@ -52,7 +52,7 @@ def load_model(model_id=DEFAULT_MODEL, model_dir="./models/whisper_tiny_de"):
     processor = AutoProcessor.from_pretrained(model_dir)
 
     return pipeline(
-        "automatic-service-recognition",
+        "automatic-speech-recognition",
         model=model,
         tokenizer=processor.tokenizer,
         feature_extractor=processor.feature_extractor,
