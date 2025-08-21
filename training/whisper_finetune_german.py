@@ -242,7 +242,10 @@ def eval_streaming(model, dataset, processor, wer_metric, max_new_tokens=64):
                 x,
                 max_new_tokens=max_new_tokens,
                 num_beams=1,
-                do_sample=False
+                do_sample=False,
+                language=LANG,
+                task=TASK,
+                attention_mask=torch.ones(x.shape[:-1], dtype=torch.long).to(model.device)
             )
         pred_str = processor.batch_decode(pred_ids, skip_special_tokens=True)[0]
         ref_str = sample["labels_text"]
@@ -319,7 +322,15 @@ sample = common_voice["validation"][0]
 feats = sample["input_features"]
 inp = torch.tensor(feats, dtype=torch.float32).unsqueeze(0).to(model.device)
 with torch.no_grad():
-    gen_ids = model.generate(inp, max_new_tokens=64, num_beams=1, do_sample=False)
+    gen_ids = model.generate(
+        inp,
+        max_new_tokens=64,
+        num_beams=1,
+        do_sample=False,
+        language=LANG,
+        task=TASK,
+        attention_mask=torch.ones(inp.shape[:-1], dtype=torch.long).to(model.device)
+    )
     transcription = processor.batch_decode(gen_ids, skip_special_tokens=True)
 print("Referenz:", sample["labels_text"])
 print("Vorhersage:", transcription)
