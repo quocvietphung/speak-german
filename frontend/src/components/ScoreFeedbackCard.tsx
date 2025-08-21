@@ -69,12 +69,13 @@ export default function ScoreFeedbackCard({
 
   const handleSpeak = () => {
     if ("speechSynthesis" in window && transcript) {
-      const u = new SpeechSynthesisUtterance(transcript);
-      u.lang = /[äöüÄÖÜß]/.test(transcript) ? "de-DE" : "en-US";
-      u.rate = 1;
-      u.pitch = 1;
+      const utterance = new SpeechSynthesisUtterance(transcript);
+      utterance.lang = "de-DE";
+      utterance.rate = 1;
+      utterance.pitch = 1;
+
       window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(u);
+      window.speechSynthesis.speak(utterance);
     }
   };
 
@@ -85,7 +86,10 @@ export default function ScoreFeedbackCard({
       shadow="xl"
       borderWidth="1px"
       bgGradient="linear(to-br, white, gray.50)"
-      _dark={{ bgGradient: "linear(to-br, gray.800, gray.900)", borderColor: "whiteAlpha.200" }}
+      _dark={{
+        bgGradient: "linear(to-br, gray.800, gray.900)",
+        borderColor: "whiteAlpha.200",
+      }}
     >
       <Card.Header mb={2}>
         <HStack justify="space-between" align="start" w="full">
@@ -95,7 +99,13 @@ export default function ScoreFeedbackCard({
               Automatic pronunciation scoring & improvement tips
             </Text>
           </VStack>
-          <Badge colorPalette={palette} variant="subtle" rounded="full" px={3} py={1}>
+          <Badge
+            colorPalette={palette}
+            variant="subtle"
+            rounded="full"
+            px={3}
+            py={1}
+          >
             {gradeLabel}
           </Badge>
         </HStack>
@@ -122,7 +132,10 @@ export default function ScoreFeedbackCard({
         {!loading && score !== null && (
           <VStack align="stretch" gap={6}>
             <HStack gap={6} align="center">
-              <Box w={{ base: "136px", md: "156px" }} h={{ base: "136px", md: "156px" }}>
+              <Box
+                w={{ base: "136px", md: "156px" }}
+                h={{ base: "136px", md: "156px" }}
+              >
                 <CircularProgressbarWithChildren
                   value={score}
                   maxValue={100}
@@ -136,7 +149,10 @@ export default function ScoreFeedbackCard({
                   })}
                 >
                   <VStack gap={0} lineHeight="1" textAlign="center">
-                    <Text fontSize={{ base: "2xl", md: "3xl" }} fontWeight="bold">
+                    <Text
+                      fontSize={{ base: "2xl", md: "3xl" }}
+                      fontWeight="bold"
+                    >
                       {score}%
                     </Text>
                     <Text color="fg.muted" textStyle="2xs">
@@ -158,8 +174,13 @@ export default function ScoreFeedbackCard({
                     : "Keep up the rhythm and clarity!"}
                 </Text>
                 <HStack gap={3} flexWrap="wrap">
-                  <Badge colorPalette={mistakes.length ? "red" : "green"} variant="surface" rounded="md">
-                    {mistakes.length} mistake{mistakes.length !== 1 ? "s" : ""}
+                  <Badge
+                    colorPalette={mistakes.length ? "red" : "green"}
+                    variant="surface"
+                    rounded="md"
+                  >
+                    {mistakes.length} mistake
+                    {mistakes.length !== 1 ? "s" : ""}
                   </Badge>
                   <Badge colorPalette="purple" variant="surface" rounded="md">
                     Tip ready
@@ -177,11 +198,21 @@ export default function ScoreFeedbackCard({
               {transcript ? (
                 <VStack align="start" gap={3}>
                   <HStack gap={3} wrap="wrap">
-                    <Button onClick={handleSpeak} colorPalette="teal" variant="solid" rounded="lg">
+                    <Button
+                      onClick={handleSpeak}
+                      colorPalette="teal"
+                      variant="solid"
+                      rounded="lg"
+                    >
                       <Icon as={MdPlayCircle} />
                       <Text ml={2}>Play transcript</Text>
                     </Button>
-                    <Badge variant="subtle" colorPalette="cyan" rounded="full" px={3}>
+                    <Badge
+                      variant="subtle"
+                      colorPalette="cyan"
+                      rounded="full"
+                      px={3}
+                    >
                       Auto-detected
                     </Badge>
                   </HStack>
@@ -202,7 +233,13 @@ export default function ScoreFeedbackCard({
                 {mistakes.length > 0 ? (
                   mistakes.map((w, i) => (
                     <WrapItem key={`${w}-${i}`}>
-                      <Badge colorPalette="red" variant="outline" rounded="md" px={2} py={1}>
+                      <Badge
+                        colorPalette="red"
+                        variant="outline"
+                        rounded="md"
+                        px={2}
+                        py={1}
+                      >
                         {w}
                       </Badge>
                     </WrapItem>
@@ -219,7 +256,9 @@ export default function ScoreFeedbackCard({
               <Text fontWeight="medium" mb={1}>
                 Tip
               </Text>
-              <Text>{tip || "Keep a steady pace and stress the key syllables."}</Text>
+              <Text>
+                {tip || "Keep a steady pace and stress the key syllables."}
+              </Text>
             </Box>
 
             {teacherFeedback && (
