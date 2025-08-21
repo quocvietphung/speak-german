@@ -1,4 +1,4 @@
-import {NextRequest, NextResponse} from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
@@ -7,22 +7,24 @@ export async function POST(req: NextRequest) {
         const formData = await req.formData();
         const audio = formData.get("audio") as File | null;
         const targetText = formData.get("target_text") as string | null;
+        const modelId = (formData.get("model_id") as string | null) || "fine_tuned";
 
         if (!audio || !targetText) {
             return NextResponse.json(
-                {error: "Missing audio or target_text"},
-                {status: 400}
+                { error: "Missing audio or target_text" },
+                { status: 400 }
             );
         }
 
-        // Convert File -> Blob (to avoid errors when forwarding in Node.js)
+        // Convert File -> Blob
         const bytes = await audio.arrayBuffer();
-        const blob = new Blob([bytes], {type: audio.type});
+        const blob = new Blob([bytes], { type: audio.type });
 
-        // Send audio file + target sentence to FastAPI backend
+        // Forward to FastAPI backend
         const forwardData = new FormData();
         forwardData.append("audio", blob, "recording.webm");
         forwardData.append("target_text", targetText);
+        forwardData.append("model_id", modelId);
 
         const backendRes = await fetch("http://127.0.0.1:8000/api/evaluate", {
             method: "POST",
@@ -32,8 +34,8 @@ export async function POST(req: NextRequest) {
         if (!backendRes.ok) {
             const errText = await backendRes.text();
             return NextResponse.json(
-                {error: "Backend error", details: errText},
-                {status: backendRes.status}
+                { error: "Backend error", details: errText },
+                { status: backendRes.status }
             );
         }
 
@@ -41,14 +43,15 @@ export async function POST(req: NextRequest) {
         /**
          * data: {
          *   reference: string,
-         *   hypothesis: string,   // <- this is the transcript
+         *   hypothesis: string,
          *   score: number,
          *   mistakes: string[],
-         *   tip: string
+         *   tip: string,
+         *   model_used: string
          * }
          */
 
-        // Call Azure OpenAI to generate deeper feedback
+        // Call Azure OpenAI for teacher feedback
         const apiKey = process.env.AZURE_OPENAI_API_KEY!;
         const endpoint = process.env.AZURE_OPENAI_ENDPOINT!;
         const deployment = process.env.AZURE_OPENAI_DEPLOYMENT_NAME!;
@@ -68,17 +71,17 @@ export async function POST(req: NextRequest) {
                         {
                             role: "system",
                             content: `Du bist ein erfahrener deutscher Sprachlehrer mit Fokus auf Phonetik UND inhaltliche Korrektheit. 
-                                    - Sei professionell, freundlich, motivierend. 
-                                    - Antworte in maximal 4–5 Sätzen. 
-                                    - Analysiere zuerst: Hat der Student den Sinn des Satzes korrekt wiedergegeben? 
-                                       • Wenn nein → erkläre klar, welches Wort oder Segment inhaltlich fehlt oder falsch ist, und gib die korrekte Formulierung. 
-                                       • Wenn ja → gehe nur auf die Aussprache ein. 
-                                    - Für jedes Fehlerwort:
-                                       • Korrekte Version
-                                       • IPA-Transkription (inkl. Schwa, zentrale Vokale)
-                                       • Betonung (Hauptakzent)
-                                       • Angabe ob Vokal lang/kurz
-                                       • Ein kurzes Beispiel zur Wiederholung`,
+                                - Sei professionell, freundlich, motivierend. 
+                                - Antworte in maximal 4–5 Sätzen. 
+                                - Analysiere zuerst: Hat der Student den Sinn des Satzes korrekt wiedergegeben? 
+                                   • Wenn nein → erkläre klar, welches Wort oder Segment inhaltlich fehlt oder falsch ist, und gib die korrekte Formulierung. 
+                                   • Wenn ja → gehe nur auf die Aussprache ein. 
+                                - Für jedes Fehlerwort:
+                                   • Korrekte Version
+                                   • IPA-Transkription (inkl. Schwa, zentrale Vokale)
+                                   • Betonung (Hauptakzent)
+                                   • Angabe ob Vokal lang/kurz
+                                   • Ein kurzes Beispiel zur Wiederholung`,
                         },
                         {
                             role: "user",
@@ -88,7 +91,7 @@ export async function POST(req: NextRequest) {
                                       Score: ${data.score}%
                                       Mistake words: ${data.mistakes?.join(", ") || "none"}
                                       Technische Hinweise: ${data.tip}
-                                    
+                                      
                                       Bitte gib ein Feedback nach den Regeln oben.`,
                         },
                     ],

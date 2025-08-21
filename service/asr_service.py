@@ -6,8 +6,8 @@ from jiwer import wer, cer
 # ===============================
 # Model paths
 # ===============================
-MODEL_BASE = "./models/whisper_tiny_base"   # model gốc (base)
-MODEL_FT   = "./models/whisper_tiny_de"     # model fine-tuned (German)
+MODEL_BASE = "./models/whisper_tiny_de"   # model gốc (base)
+MODEL_FT   = "./models/whisper_tiny_de_finetuned"     # model fine-tuned (German)
 
 # ===============================
 # Device selection (GPU -> MPS -> CPU)
