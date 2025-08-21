@@ -262,10 +262,10 @@ training_args = Seq2SeqTrainingArguments(
     output_dir=OUT_DIR,
     per_device_train_batch_size=1,
     gradient_accumulation_steps=8,
-    learning_rate=None,           # để AdaFactor tự điều chỉnh
-    adafactor=True,               # bật AdaFactor
-    optim="adafactor",            # chọn optimizer AdaFactor
-    warmup_steps=100,             # giúp AdaFactor điều chỉnh learning rate hiệu quả (5–10% warmup)  [oai_citation:3‡Hugging Face](https://huggingface.co/docs/transformers/v4.17.0/en/performance?utm_source=chatgpt.com) [oai_citation:4‡Hugging Face Forums](https://discuss.huggingface.co/t/for-the-seq2seqtrainingarguments-class-what-happens-when-i-set-both-adafactor-true-and-set-a-learning-rate/74459?utm_source=chatgpt.com) [oai_citation:5‡Hugging Face Forums](https://discuss.huggingface.co/t/t5-finetuning-tips/684/36?utm_source=chatgpt.com)
+    learning_rate=1.25e-5,
+    adafactor=True,
+    optim="adafactor",
+    warmup_steps=100,
     weight_decay=0.0,
     max_steps=1000,
     predict_with_generate=False,
