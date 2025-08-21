@@ -24,8 +24,8 @@ import numpy as np
 # 1) Config
 # =========================
 MODEL_ID   = "openai/whisper-tiny"
-OUT_DIR    = "./whisper-tiny-de-test"
-CKPT_PATH  = os.path.join(OUT_DIR, "whisper_tiny_de_finetuned")
+OUT_DIR   = "./models"
+CKPT_PATH = os.path.join(OUT_DIR, "whisper_tiny_de_finetuned")
 LANG       = "de"
 TASK       = "transcribe"
 SR         = 16000
