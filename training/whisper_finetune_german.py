@@ -267,9 +267,13 @@ training_args = Seq2SeqTrainingArguments(
     warmup_steps=100,
     weight_decay=0.0,
     max_steps=1000,
-    predict_with_generate=False,
-    logging_steps=10,
-    report_to="none",
+    predict_with_generate=True,
+    logging_dir="./logs",          # ✅ nơi lưu log TensorBoard
+    logging_steps=10,              # ✅ ghi log sau mỗi 10 step
+    report_to="tensorboard",       # ✅ gửi log sang TensorBoard
+    eval_strategy="steps",   # ✅ bắt buộc nếu muốn có eval_loss/wer
+    eval_steps=50,                 # ✅ tần suất đánh giá
+    save_strategy="steps",         # (optional) lưu checkpoint theo steps
     fp16=False,
     remove_unused_columns=False,
     dataloader_pin_memory=False,
@@ -283,8 +287,9 @@ trainer = Seq2SeqTrainer(
     model=model,
     args=training_args,
     train_dataset=common_voice["train"],
-    eval_dataset=None,
+    eval_dataset=common_voice["validation"],  # bắt buộc khi eval_strategy != "no"
     data_collator=data_collator,
+    compute_metrics=compute_metrics,
 )
 
 # =========================
