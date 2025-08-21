@@ -7,7 +7,6 @@ import {
   Box,
   HStack,
   Badge,
-  useToken,
 } from "@chakra-ui/react";
 
 type ModelValue = "base" | "fine_tuned";
@@ -18,41 +17,38 @@ export interface ModelSelectProps {
 }
 
 export default function ModelSelect({ modelId, onChange }: ModelSelectProps) {
-  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) =>
+  const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     onChange(e.currentTarget.value as ModelValue);
+  };
 
   const label =
     modelId === "base" ? "whisper_tiny_de" : "whisper_tiny_de_finetuned";
 
-  // Pastel blue highlight for focus effect
-  const pastelBlue = useToken("colors", "blue.200");
-
   return (
-    <Box p="4" bg="blue.50" rounded="md" borderWidth="1px" borderColor="blue.100" w="100%">
+    <Box
+      bg="gray.50"
+      p={4}
+      rounded="md"
+      shadow="sm"
+      border="1px solid"
+      borderColor="gray.200"
+    >
       <Field.Root>
+        {/* Header with label + badge */}
         <HStack justify="space-between" mb="2">
-          <Field.Label fontSize="lg" fontWeight="semibold" color="blue.800">
+          <Field.Label fontWeight="medium" color="gray.700">
             Select Model
           </Field.Label>
-          <Badge variant="subtle" colorPalette="blue">
+          <Badge colorPalette="blue" variant="subtle" rounded="md">
             {label}
           </Badge>
         </HStack>
 
-        <NativeSelect.Root
-          size="md"
-          width="100%"
-          bg="white"
-          borderColor="blue.200"
-          _focus={{
-            borderColor: "blue.400",
-            boxShadow: `0 0 0 1px ${pastelBlue}`,
-          }}
-        >
+        <NativeSelect.Root size="sm" width="50%">
           <NativeSelect.Field
             value={modelId}
             onChange={handleChange}
-            aria-label="Choose ASR model"
+            aria-label="Select ASR model"
           >
             <option value="base">whisper_tiny_de</option>
             <option value="fine_tuned">whisper_tiny_de_finetuned</option>
@@ -60,10 +56,11 @@ export default function ModelSelect({ modelId, onChange }: ModelSelectProps) {
           <NativeSelect.Indicator />
         </NativeSelect.Root>
 
-        <Field.HelperText mt="2" color="blue.600">
+        {/* Helper text */}
+        <Field.HelperText mt="2" color="gray.500" fontSize="sm">
           {modelId === "base"
             ? "Using standard base model (not fine-tuned)."
-            : "Using German fine-tuned model."}
+            : "Using fine-tuned German ASR model."}
         </Field.HelperText>
       </Field.Root>
     </Box>
