@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { Box, Grid, Stack, Text, NativeSelect } from "@chakra-ui/react";
+import { Box, Grid, Stack } from "@chakra-ui/react";
 import RecordingCard from "@/components/RecordingCard";
 import ScoreFeedbackCard from "@/components/ScoreFeedbackCard";
+import ModelSelect from "@/components/ModelSelect";
 
 export default function Home() {
   const [targetText, setTargetText] = useState(
@@ -90,31 +91,10 @@ export default function Home() {
     }
   };
 
-  const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.currentTarget.value as "base" | "fine_tuned";
-    setModelId(value);
-  };
-
   return (
     <Box minH="100vh" p={8} bg="gray.50" display="flex" justifyContent="center">
       <Stack gap="6" maxW="6xl" w="100%">
-        {/* Model picker (Chakra v3 NativeSelect) */}
-        <Box>
-          <Text mb="2" fontWeight="medium">
-            Model
-          </Text>
-          <NativeSelect.Root size="sm" width="280px">
-            <NativeSelect.Field
-              value={modelId}
-              onChange={handleModelChange}
-              aria-label="Select ASR model"
-            >
-              <option value="base">whisper_tiny_de</option>
-              <option value="fine_tuned">whisper_tiny_de_finetuned</option>
-            </NativeSelect.Field>
-            <NativeSelect.Indicator />
-          </NativeSelect.Root>
-        </Box>
+        <ModelSelect modelId={modelId} onChange={setModelId} />
 
         <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} gap={8}>
           <RecordingCard
