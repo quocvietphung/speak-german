@@ -6,14 +6,14 @@ from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 from jiwer import wer, cer
 
 # ===============================
-# Default model (German Whisper)
+# Default model (German Whisper fine-tuned)
 # ===============================
-DEFAULT_MODEL = "openai/whisper-tiny"
+DEFAULT_MODEL = "./models/whisper_tiny_de_finetuned"
 
 # ===============================
 # Load Whisper ASR Model
 # ===============================
-def load_model(model_id=DEFAULT_MODEL, model_dir="./models/whisper_tiny_de"):
+def load_model(model_id=DEFAULT_MODEL, model_dir="./models/whisper_tiny_de_finetuned"):
     """
     Download (if needed) and load Whisper model for German ASR.
     """
