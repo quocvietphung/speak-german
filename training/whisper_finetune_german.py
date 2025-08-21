@@ -170,8 +170,47 @@ def compute_metrics(pred):
     return {"wer": wer_metric.compute(predictions=pred_str, references=label_str)}
 
 # =========================
+# 11) Eval thủ công (tránh OOM do Trainer gom predictions)
+# =========================
+def eval_streaming(model, dataset, processor, wer_metric, max_new_tokens=64):
+    model.eval()
+    wers = []
+    for i in range(len(dataset)):
+        sample = dataset[i]
+        feats = sample["input_features"]
+        x = torch.tensor(feats, dtype=torch.float32).unsqueeze(0).to(model.device)
+        with torch.no_grad():
+            pred_ids = model.generate(
+                x,
+                max_new_tokens=max_new_tokens,
+                num_beams=1,
+                do_sample=False
+            )
+        pred_str = processor.batch_decode(pred_ids, skip_special_tokens=True)[0]
+        ref_str  = sample["labels_text"]
+        wer_val  = wer_metric.compute(predictions=[pred_str], references=[ref_str])
+        wers.append(wer_val)
+
+        del x, pred_ids
+        if torch.backends.mps.is_available():
+            torch.mps.empty_cache()
+    return {"wer": float(np.mean(wers))}
+
+# =========================
+# Check if final checkpoint exists and load it to skip training
+# =========================
+if os.path.exists(CKPT_PATH) and os.path.isfile(os.path.join(CKPT_PATH, "pytorch_model.bin")):
+    model = WhisperForConditionalGeneration.from_pretrained(CKPT_PATH).to(device)
+    processor = WhisperProcessor.from_pretrained(CKPT_PATH)
+    print("✅ Loaded final checkpoint, skip training.")
+    metrics = eval_streaming(model, common_voice["validation"], processor, wer_metric)
+    print("Eval metrics:", metrics)
+    exit()
+
+# =========================
 # 7) Training args
 #   - QUAN TRỌNG: remove_unused_columns=False để giữ labels_text tới collator
+#   - Vô hiệu hoá checkpoint trung gian: chỉ lưu checkpoint-final duy nhất
 # =========================
 training_args = Seq2SeqTrainingArguments(
     output_dir=OUT_DIR,
@@ -184,7 +223,7 @@ training_args = Seq2SeqTrainingArguments(
     optim="adafactor",
     dataloader_pin_memory=False,
     dataloader_num_workers=0,
-    save_total_limit=1,
+    save_strategy="no",  # không lưu checkpoint trung gian tự động
     logging_steps=10,
     report_to="none",
     fp16=False,
@@ -203,43 +242,22 @@ trainer = Seq2SeqTrainer(
 )
 
 # =========================
-# 9) Train
+# 9) Kiểm tra nếu checkpoint-final đã có → bỏ qua training, chạy eval luôn
+#    Nếu chưa có → train rồi lưu checkpoint-final
 # =========================
-trainer.train()
-
-# =========================
-# 10) Lưu model + processor (đủ file để load sau này từ CKPT_PATH)
-# =========================
-os.makedirs(CKPT_PATH, exist_ok=True)
-trainer.save_model(CKPT_PATH)
-processor.save_pretrained(CKPT_PATH)
+if _has_full_processor(CKPT_PATH):
+    print(f"Checkpoint-final found at {CKPT_PATH}, skipping training.")
+else:
+    trainer.train()
+    # Lưu duy nhất checkpoint-final sau khi train xong
+    os.makedirs(CKPT_PATH, exist_ok=True)
+    trainer.save_model(CKPT_PATH)
+    model.save_pretrained(CKPT_PATH)
+    processor.save_pretrained(CKPT_PATH)
 
 # =========================
 # 11) Eval thủ công (tránh OOM do Trainer gom predictions)
 # =========================
-def eval_streaming(model, dataset, processor, wer_metric, max_new_tokens=64):
-    model.eval()
-    wers = []
-    for i in range(len(dataset)):
-        sample = dataset[i]
-        x = sample["input_features"].unsqueeze(0).to(model.device)
-        with torch.no_grad():
-            pred_ids = model.generate(
-                x,
-                max_new_tokens=max_new_tokens,
-                num_beams=1,
-                do_sample=False
-            )
-        pred_str = processor.batch_decode(pred_ids, skip_special_tokens=True)[0]
-        ref_str  = sample["labels_text"]
-        wer_val  = wer_metric.compute(predictions=[pred_str], references=[ref_str])
-        wers.append(wer_val)
-
-        del x, pred_ids
-        if torch.backends.mps.is_available():
-            torch.mps.empty_cache()
-    return {"wer": float(np.mean(wers))}
-
 metrics = eval_streaming(model, common_voice["validation"], processor, wer_metric, max_new_tokens=64)
 print("Eval metrics:", metrics)
 
@@ -247,7 +265,8 @@ print("Eval metrics:", metrics)
 # 12) Test nhanh 1 mẫu
 # =========================
 sample = common_voice["validation"][0]
-inp = sample["input_features"].unsqueeze(0).to(model.device)
+feats = sample["input_features"]
+inp = torch.tensor(feats, dtype=torch.float32).unsqueeze(0).to(model.device)
 with torch.no_grad():
     gen_ids = model.generate(inp, max_new_tokens=64, num_beams=1, do_sample=False)
     transcription = processor.batch_decode(gen_ids, skip_special_tokens=True)
