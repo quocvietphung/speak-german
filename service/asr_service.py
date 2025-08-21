@@ -6,8 +6,8 @@ from jiwer import wer, cer
 # ===============================
 # Model paths
 # ===============================
-MODEL_BASE = "./models/whisper_tiny_de"   # model gốc (base)
-MODEL_FT   = "./models/whisper_tiny_de_finetuned"     # model fine-tuned (German)
+MODEL_BASE = "./models/whisper_tiny_de"
+MODEL_FT   = "./models/whisper_tiny_de_finetuned"
 
 # ===============================
 # Device selection (GPU -> MPS -> CPU)
@@ -52,7 +52,7 @@ def build_asr_pipeline(model_dir: str):
 # Load both models
 # ===============================
 asr_base = build_asr_pipeline(MODEL_BASE)
-asr_fine_tuned   = build_asr_pipeline(MODEL_FT)
+asr_fine_tuned = build_asr_pipeline(MODEL_FT)
 
 # ===============================
 # Transcription
