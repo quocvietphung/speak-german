@@ -258,6 +258,8 @@ def eval_streaming(model, dataset, processor, wer_metric, max_new_tokens=64):
 # =========================
 # 7) TrainingArgs
 # =========================
+os.makedirs("./logs", exist_ok=True)
+
 training_args = Seq2SeqTrainingArguments(
     output_dir=OUT_DIR,
     per_device_train_batch_size=1,
