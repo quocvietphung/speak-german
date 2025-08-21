@@ -263,19 +263,17 @@ training_args = Seq2SeqTrainingArguments(
     per_device_train_batch_size=1,
     gradient_accumulation_steps=8,
     learning_rate=1.25e-5,
-    adafactor=True,
     optim="adafactor",
     warmup_steps=100,
     weight_decay=0.0,
     max_steps=1000,
     predict_with_generate=False,
-    dataloader_pin_memory=False,
-    dataloader_num_workers=0,
-    save_strategy="no",
     logging_steps=10,
     report_to="none",
     fp16=False,
     remove_unused_columns=False,
+    dataloader_pin_memory=False,
+    dataloader_num_workers=0,
 )
 
 # =========================
