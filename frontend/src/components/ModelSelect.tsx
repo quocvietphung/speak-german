@@ -26,7 +26,7 @@ export default function ModelSelect({ modelId, onChange }: ModelSelectProps) {
 
   return (
     <Box
-      bg="gray.50"
+      bg="white"
       p={4}
       rounded="md"
       shadow="sm"
