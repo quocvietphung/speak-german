@@ -131,23 +131,21 @@ def compute_metrics(pred):
 
 # 6) TrainingArguments — TẮT gradient checkpointing để tránh lỗi backward re-entrant
 training_args = Seq2SeqTrainingArguments(
-    output_dir="./whisper-small-de-finetuned",
-    per_device_train_batch_size=1,     # ↓ RAM MPS
-    gradient_accumulation_steps=16,    # giữ effective batch lớn
+    output_dir="./whisper-small-de-test",
+    per_device_train_batch_size=1,
+    gradient_accumulation_steps=8,    # giữ nhỏ để nhanh
     learning_rate=1.25e-5,
-    warmup_steps=200,
-    max_steps=2000,
-
+    warmup_steps=10,                  # chỉ cần vài bước warmup
+    max_steps=100,                    # 🚀 chỉ train 100 step
     eval_strategy="steps",
-    eval_steps=500,
-    save_steps=500,
-    logging_steps=50,
+    eval_steps=50,                    # đánh giá sau 50 step
+    save_steps=50,
+    logging_steps=10,
     predict_with_generate=True,
-
-    gradient_checkpointing=False,      # <-- tắt để tránh lỗi backward lần 2
-    dataloader_pin_memory=False,       # MPS không hỗ trợ
+    gradient_checkpointing=False,
+    dataloader_pin_memory=False,
     dataloader_num_workers=0,
-    save_total_limit=2,
+    save_total_limit=1,
     report_to="none",
 )
 
@@ -164,6 +162,8 @@ trainer = Seq2SeqTrainer(
 
 # 8) Train
 trainer.train()
+metrics = trainer.evaluate()
+print(metrics)
 
 # -------- PHƯƠNG ÁN B (nếu muốn checkpointing mà vẫn an toàn) ----------
 # BẬT lại GC theo kiểu non-reentrant:
