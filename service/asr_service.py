@@ -13,21 +13,38 @@ DEFAULT_MODEL = "./models/whisper_tiny_de"
 # ===============================
 # Load Whisper ASR Model
 # ===============================
-def load_model(model_id=DEFAULT_MODEL, model_dir="./models/whisper_tiny_de"):
+def load_model(model_id=None, model_dir=None):
     """
-    Download (if needed) and load Whisper model for German ASR.
+    Download (if needed) and load a Whisper model for German ASR.
+
+    Args:
+        model_id (str): Hugging Face repo ID (e.g., "openai/whisper-tiny-de")
+                       or local path to model directory.
+        model_dir (str): Local path where the model is stored or will be saved.
+                         Defaults to model_id if not provided.
+
+    Returns:
+        pipeline: Hugging Face ASR pipeline ready for transcription.
     """
+    # Use default model if nothing is provided
+    if model_id is None:
+        model_id = DEFAULT_MODEL
+    if model_dir is None:
+        model_dir = model_id
+
+    # Ensure local model directory exists
     os.makedirs(model_dir, exist_ok=True)
 
-    if not os.listdir(model_dir):
-        print(f"[+] Downloading model to: {model_dir}")
+    # If model_dir is empty and model_id is a HF repo, download the model
+    if not os.listdir(model_dir) and not os.path.isdir(model_id):
+        print(f"[+] Downloading model {model_id} to: {model_dir}")
         snapshot_download(
             repo_id=model_id,
             local_dir=model_dir,
             local_dir_use_symlinks=False
         )
 
-    # Device selection
+    # Device selection (GPU -> MPS -> CPU)
     if torch.cuda.is_available():
         device_idx, torch_dtype = 0, torch.float16
         device_for_model = "cuda"
@@ -39,6 +56,8 @@ def load_model(model_id=DEFAULT_MODEL, model_dir="./models/whisper_tiny_de"):
         device_for_model = "cpu"
 
     print(f"[+] Loading model from: {model_dir}")
+
+    # Load model into memory
     model = AutoModelForSpeechSeq2Seq.from_pretrained(
         model_dir,
         torch_dtype=torch_dtype,
@@ -46,19 +65,22 @@ def load_model(model_id=DEFAULT_MODEL, model_dir="./models/whisper_tiny_de"):
         use_safetensors=True
     )
 
+    # Move to GPU or MPS if available
     if device_for_model != "cpu":
         model = model.to(device_for_model)
 
+    # Load processor (tokenizer + feature extractor)
     processor = AutoProcessor.from_pretrained(model_dir)
 
+    # Return Hugging Face ASR pipeline
     return pipeline(
         "automatic-speech-recognition",
         model=model,
         tokenizer=processor.tokenizer,
         feature_extractor=processor.feature_extractor,
         device=device_idx,
-        chunk_length_s=10,
-        stride_length_s=(4, 2),
+        chunk_length_s=10,    # split audio into chunks of 10s
+        stride_length_s=(4, 2),  # overlapping stride for smoother transcription
     )
 
 # ===============================
