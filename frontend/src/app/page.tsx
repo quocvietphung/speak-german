@@ -1,15 +1,18 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useRef, useState } from "react";
 import { Box, Grid, Stack } from "@chakra-ui/react";
 import RecordingCard from "@/components/RecordingCard";
 import ScoreFeedbackCard from "@/components/ScoreFeedbackCard";
 import ModelSelect from "@/components/ModelSelect";
 
+type ModelValue = "base" | "fine_tuned";
+
 export default function Home() {
   const [targetText, setTargetText] = useState(
     "Klicke auf Next Sentence, um zu starten."
   );
+  const [modelId, setModelId] = useState<ModelValue>("base");
   const [recording, setRecording] = useState(false);
   const [loading, setLoading] = useState(false);
   const [score, setScore] = useState<number | null>(null);
@@ -17,7 +20,6 @@ export default function Home() {
   const [tip, setTip] = useState("");
   const [teacherFeedback, setTeacherFeedback] = useState("");
   const [transcript, setTranscript] = useState("");
-  const [modelId, setModelId] = useState<"base" | "fine_tuned">("fine_tuned"); // default
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -46,7 +48,7 @@ export default function Home() {
           const formData = new FormData();
           formData.append("audio", audioBlob, "recording.webm");
           formData.append("target_text", targetText);
-          formData.append("model_id", modelId); // gửi model chọn lên backend
+          formData.append("model_id", modelId);
 
           try {
             const res = await fetch("/api/evaluate", { method: "POST", body: formData });
