@@ -17,17 +17,20 @@ import evaluate
 # =========================
 # 1) Model & Processor
 # =========================
-MODEL_ID = "openai/whisper-tiny"   # ✅ dùng tiny cho nhẹ RAM
+MODEL_ID = "openai/whisper-tiny"   # ✅ model gốc Hugging Face
+CKPT_PATH = "./whisper-tiny-de-test/checkpoint-100"  # ✅ checkpoint sau khi train
 LANG = "de"
 TASK = "transcribe"
 
-processor = WhisperProcessor.from_pretrained(MODEL_ID, language=LANG, task=TASK)
+# --- Nếu checkpoint tồn tại, load từ đó, nếu không thì dùng MODEL_ID ---
+load_path = CKPT_PATH if os.path.isdir(CKPT_PATH) else MODEL_ID
+
+processor = WhisperProcessor.from_pretrained(load_path, language=LANG, task=TASK)
 model = WhisperForConditionalGeneration.from_pretrained(
-    MODEL_ID,
+    load_path,
     attn_implementation="eager",  # tránh SDPA ngốn RAM trên MPS
 )
 model.config.use_cache = False
-# tiết kiệm RAM activations (non-reentrant cho ổn định trên MPS)
 model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
 
 device = "mps" if torch.backends.mps.is_available() else "cpu"
