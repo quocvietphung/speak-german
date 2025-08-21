@@ -36,7 +36,7 @@ import numpy as np
 # =========================
 MODEL_ID = "openai/whisper-tiny"
 OUT_DIR = "./models"
-CKPT_PATH = os.path.join(OUT_DIR, "whisper_tiny_de_finetuned")
+CKPT_PATH = os.path.join(OUT_DIR, "whisper_tiny_de_optimize")
 LANG = "de"
 TASK = "transcribe"
 SR = 16000
@@ -273,12 +273,12 @@ training_args = Seq2SeqTrainingArguments(
     weight_decay=0.0,
     max_steps=1000,
     predict_with_generate=True,
-    logging_dir="./logs",          # ✅ nơi lưu log TensorBoard
-    logging_steps=10,              # ✅ ghi log sau mỗi 10 step
-    report_to="tensorboard",       # ✅ gửi log sang TensorBoard
-    eval_strategy="steps",   # ✅ bắt buộc nếu muốn có eval_loss/wer
-    eval_steps=50,                 # ✅ tần suất đánh giá
-    save_strategy="steps",         # (optional) lưu checkpoint theo steps
+    logging_dir="./logs",
+    logging_steps=10,
+    report_to="tensorboard",
+    eval_strategy="steps",
+    eval_steps=50,
+    save_strategy="steps",
     fp16=False,
     remove_unused_columns=False,
     dataloader_pin_memory=False,
