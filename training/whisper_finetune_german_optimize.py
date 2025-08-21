@@ -261,7 +261,7 @@ def eval_streaming(model, dataset, processor, wer_metric, max_new_tokens=64):
 # =========================
 # 7) TrainingArgs
 # =========================
-os.makedirs("./logs", exist_ok=True)
+os.makedirs("../notebooks /logs", exist_ok=True)
 
 training_args = Seq2SeqTrainingArguments(
     output_dir=OUT_DIR,
@@ -273,7 +273,7 @@ training_args = Seq2SeqTrainingArguments(
     weight_decay=0.0,
     max_steps=1000,
     predict_with_generate=True,
-    logging_dir="./logs",
+    logging_dir="../notebooks /logs",
     logging_steps=10,
     report_to="tensorboard",
     eval_strategy="steps",
