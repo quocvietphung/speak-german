@@ -10,34 +10,32 @@ from transformers import (
     Seq2SeqTrainer,
 )
 import evaluate
-
-# --- (Tùy chọn) nếu vẫn OOM MPS, cân nhắc bật 1 dòng dưới (cẩn trọng) ---
-# os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"  # nới giới hạn bộ nhớ MPS   [oai_citation:4‡PyTorch Forums](https://discuss.pytorch.org/t/mps-backend-out-of-memory/183879?utm_source=chatgpt.com)
+import numpy as np
 
 # =========================
-# 1) Model & Processor
+# 1) Config
 # =========================
-MODEL_ID = "openai/whisper-tiny"   # ✅ model gốc Hugging Face
-CKPT_PATH = "./whisper-tiny-de-test/checkpoint-100"  # ✅ checkpoint sau khi train
+MODEL_ID = "openai/whisper-tiny"
+CKPT_PATH = "./whisper-tiny-de-test/checkpoint-final"
 LANG = "de"
 TASK = "transcribe"
 
-# --- Nếu checkpoint tồn tại, load từ đó, nếu không thì dùng MODEL_ID ---
-load_path = CKPT_PATH if os.path.isdir(CKPT_PATH) else MODEL_ID
+device = "mps" if torch.backends.mps.is_available() else "cpu"
 
-processor = WhisperProcessor.from_pretrained(load_path, language=LANG, task=TASK)
+# =========================
+# 2) Load model + processor
+# =========================
+processor = WhisperProcessor.from_pretrained(MODEL_ID, language=LANG, task=TASK)
 model = WhisperForConditionalGeneration.from_pretrained(
-    load_path,
-    attn_implementation="eager",  # tránh SDPA ngốn RAM trên MPS
+    MODEL_ID,
+    attn_implementation="eager"
 )
 model.config.use_cache = False
 model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
-
-device = "mps" if torch.backends.mps.is_available() else "cpu"
 model.to(device)
 
 # =========================
-# 2) Dataset (lọc <=15s cho nhẹ)
+# 3) Dataset (lọc <=15s)
 # =========================
 common_voice = DatasetDict({
     "train": load_dataset("mozilla-foundation/common_voice_13_0", "de", split="train[:1%]"),
@@ -45,8 +43,7 @@ common_voice = DatasetDict({
 })
 common_voice = common_voice.cast_column("audio", Audio(sampling_rate=16000))
 
-MAX_SECONDS = 15
-SR = 16000
+MAX_SECONDS, SR = 15, 16000
 def _dur_ok(ex):
     return len(ex["audio"]["array"]) <= SR * MAX_SECONDS
 
@@ -54,27 +51,19 @@ for split in ["train", "validation"]:
     common_voice[split] = common_voice[split].filter(_dur_ok)
 
 # =========================
-# 3) Preprocess (tách AUDIO/TEXT)
+# 4) Preprocess
 # =========================
 def preprocess(batch):
     audio = batch["audio"]
-
-    # AUDIO -> features (KHÔNG pad 3000 ở đây)
     fe = processor.feature_extractor(
         audio["array"],
         sampling_rate=audio["sampling_rate"],
         return_tensors="pt",
         padding=False
     )
-    batch["input_features"] = fe.input_features[0]  # [80, T]
+    batch["input_features"] = fe.input_features[0]
 
-    # TEXT -> labels (giới hạn 448 token cho decoder)
-    tok = processor.tokenizer(
-        batch["sentence"],
-        max_length=448,
-        truncation=True
-    )
-    batch["labels"] = tok.input_ids  # list[int]
+    batch["labels_text"] = batch["sentence"]
     return batch
 
 for split in ["train", "validation"]:
@@ -85,42 +74,37 @@ for split in ["train", "validation"]:
     )
 
 # =========================
-# 4) Collator ép AUDIO -> [80,3000] & LABELS -> 448
+# 5) Collator
 # =========================
 @dataclass
 class DataCollatorWhisper:
     processor: WhisperProcessor
-    max_input_length: int = 3000   # Whisper encoder yêu cầu 30s = 3000 frames   [oai_citation:5‡GitHub](https://github.com/guillaumekln/faster-whisper/issues/171?utm_source=chatgpt.com)
-    max_label_length: int = 448    # decoder limit ~448 token   [oai_citation:6‡GitHub](https://github.com/huggingface/transformers/issues/27445?utm_source=chatgpt.com)
+    max_input_length: int = 3000
+    max_label_length: int = 448
 
     def __call__(self, features):
-        # Pad/trim AUDIO về [80, 3000]
         feats = []
         for f in features:
-            feat = f["input_features"]
-            if not torch.is_tensor(feat):
-                feat = torch.tensor(feat)
+            feat = torch.tensor(f["input_features"]) if not torch.is_tensor(f["input_features"]) else f["input_features"]
             T = feat.shape[-1]
             if T > self.max_input_length:
                 feat = feat[:, : self.max_input_length]
             elif T < self.max_input_length:
-                pad_T = self.max_input_length - T
-                pad = torch.zeros(feat.size(0), pad_T, dtype=feat.dtype)
+                pad = torch.zeros(feat.size(0), self.max_input_length - T, dtype=feat.dtype)
                 feat = torch.cat([feat, pad], dim=-1)
             feats.append(feat)
-        input_features = torch.stack(feats, dim=0)  # [B,80,3000]
+        input_features = torch.stack(feats, dim=0)
 
-        # Pad LABELS -> 448 và mask -100
-        label_dicts = [{"input_ids": f["labels"]} for f in features]
-        labels_batch = self.processor.tokenizer.pad(
-            label_dicts,
+        texts = [f["labels_text"] for f in features]
+        labels_batch = self.processor.tokenizer(
+            texts,
             padding="max_length",
+            truncation=True,
             max_length=self.max_label_length,
             return_tensors="pt",
         )
         labels = labels_batch["input_ids"].masked_fill(labels_batch.attention_mask.ne(1), -100)
 
-        # Bỏ BOS nếu cần
         bos_id = self.processor.tokenizer.bos_token_id
         if bos_id is not None and (labels[:, 0] == bos_id).all().item():
             labels = labels[:, 1:]
@@ -130,7 +114,7 @@ class DataCollatorWhisper:
 data_collator = DataCollatorWhisper(processor=processor)
 
 # =========================
-# 5) (Tùy chọn) Metrics WER — bật khi bạn chạy evaluate sau train
+# 6) Metrics (WER)
 # =========================
 wer_metric = evaluate.load("wer")
 def compute_metrics(pred):
@@ -146,96 +130,82 @@ def compute_metrics(pred):
     return {"wer": wer_metric.compute(predictions=pred_str, references=label_str)}
 
 # =========================
-# 6) TrainingArguments (tiết kiệm RAM MPS)
+# 7) Training args
 # =========================
 training_args = Seq2SeqTrainingArguments(
     output_dir="./whisper-tiny-de-test",
-    per_device_train_batch_size=1,   # batch nhỏ
-    gradient_accumulation_steps=8,   # bù qua accumulate
+    per_device_train_batch_size=1,
+    gradient_accumulation_steps=8,
     learning_rate=1.25e-5,
     warmup_steps=10,
-    max_steps=100,                   # chạy thử ngắn
-    # Mặc định KHÔNG evaluate trong lúc train (tránh OOM). Bật lại sau khi ổn.
-    predict_with_generate=False,     # generate trong eval rất tốn RAM
-    optim="adafactor",               # optimizer tiết kiệm RAM
+    max_steps=100,
+    predict_with_generate=False,
+    optim="adafactor",
     dataloader_pin_memory=False,
     dataloader_num_workers=0,
     save_total_limit=1,
     logging_steps=10,
     report_to="none",
-    fp16=False,                      # MPS không dùng fp16
+    fp16=False,
 )
 
 # =========================
-# 7) Trainer (chỉ train, không eval để tiết kiệm RAM)
+# 8) Trainer
 # =========================
 trainer = Seq2SeqTrainer(
     model=model,
     args=training_args,
     train_dataset=common_voice["train"],
-    eval_dataset=None,               # không dùng validation lúc train
+    eval_dataset=None,
     data_collator=data_collator,
 )
 
 # =========================
-# 8) Train
+# 9) Train
 # =========================
 trainer.train()
 
-import numpy as np
+# ✅ Save model + processor đầy đủ để load lại không lỗi
+trainer.save_model(CKPT_PATH)
+processor.save_pretrained(CKPT_PATH)
 
 # =========================
-# 9) Eval thủ công (không dùng Trainer.evaluate)
+# 10) Eval thủ công
 # =========================
 def eval_streaming(model, dataset, processor, wer_metric, max_new_tokens=64):
     model.eval()
     wers = []
-
     for i in range(len(dataset)):
         sample = dataset[i]
-
-        # input_features đã được collator pad về [80,3000]
         x = sample["input_features"].unsqueeze(0).to(model.device)
-
-        # sinh prediction
         with torch.no_grad():
-            pred_ids = model.generate(
-                x,
-                max_new_tokens=max_new_tokens,
-                num_beams=1,
-                do_sample=False
-            )
+            pred_ids = model.generate(x, max_new_tokens=max_new_tokens)
 
-        # decode prediction + reference
+        # 🔹 Prediction
         pred_str = processor.batch_decode(pred_ids, skip_special_tokens=True)[0]
 
-        # ⚠️ Ở preprocess bạn lưu nhãn dạng token vào `labels` chứ không giữ text,
-        # nên ta decode lại labels để có reference string
-        ref_str = processor.decode(sample["labels"], skip_special_tokens=True)
+        # 🔹 Reference (lấy text gốc)
+        ref_str = sample["labels_text"]
 
-        # tính WER cho sample này
         wer_val = wer_metric.compute(predictions=[pred_str], references=[ref_str])
         wers.append(wer_val)
 
-        # giải phóng bộ nhớ MPS
+        # cleanup
         del x, pred_ids
         if torch.backends.mps.is_available():
             torch.mps.empty_cache()
 
     return {"wer": float(np.mean(wers))}
 
-# =========================
-# Gọi function để eval
-# =========================
-metrics = eval_streaming(model, common_voice["validation"], processor, wer_metric, max_new_tokens=64)
+# chạy
+metrics = eval_streaming(model, common_voice["validation"], processor, wer_metric)
 print("Eval metrics:", metrics)
 
 # =========================
-# 10) Test nhanh trên 1 mẫu audio
+# 11) Test trên 1 mẫu
 # =========================
 sample = common_voice["validation"][0]
 inp = sample["input_features"].unsqueeze(0).to(model.device)
-
 with torch.no_grad():
     gen_ids = model.generate(inp, max_new_tokens=64)
     transcription = processor.batch_decode(gen_ids, skip_special_tokens=True)
