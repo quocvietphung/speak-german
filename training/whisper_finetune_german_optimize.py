@@ -18,18 +18,18 @@ import numpy as np
 # Dieses Skript dient zum Fine-Tuning von Whisper (Deutsch).
 # Hauptschritte:
 #  - Laden des Modells und Prozessors
-#  - Vorverarbeitung von Common Voice (Deutsch, 1%)
+#  - Vorverarbeitung von Common Voice (Deutsch, 10%)
 #  - Eigener DataCollator für Audio + Labels
 #  - Training mit Seq2SeqTrainer (HuggingFace)
-#  - Manuelle Evaluation (WER)
+#  - Manuelle Evaluation mit WER
 # ============================================================
 
 # =========================
 # 0) (Optional) MPS-Konfiguration für Mac
 # =========================
 # os.environ["PYTORCH_MPS_HIGH_WATERMARK_RATIO"] = "0.0"
-# Vorsicht! Kann Instabilitäten auf Apple MPS verursachen.
-# https://discuss.pytorch.org/t/mps-backend-out-of-memory/183879
+# Vorsicht: Kann Instabilitäten auf Apple MPS verursachen.
+# Quelle: https://discuss.pytorch.org/t/mps-backend-out-of-memory/183879
 
 # =========================
 # 1) Konfiguration
@@ -44,13 +44,12 @@ MAX_SECONDS = 15
 
 device = "mps" if torch.backends.mps.is_available() else "cpu"
 
-
 # =========================
 # 2) Modell + Prozessor laden
 # =========================
 def _has_full_processor(path: str) -> bool:
     """
-    Prüft, ob ein Verzeichnis alle benötigten Dateien für Whisper enthält.
+    Prüft, ob ein Ordner alle benötigten Dateien für Whisper enthält.
 
     Args:
         path (str): Pfad zum Checkpoint-Ordner
@@ -71,7 +70,7 @@ load_path = CKPT_PATH if _has_full_processor(CKPT_PATH) else MODEL_ID
 processor = WhisperProcessor.from_pretrained(load_path, language=LANG, task=TASK)
 model = WhisperForConditionalGeneration.from_pretrained(
     load_path,
-    attn_implementation="eager",  # "eager" spart RAM auf MPS
+    attn_implementation="eager",  # „eager“ spart RAM auf MPS
 )
 model.config.use_cache = False
 model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
@@ -103,26 +102,25 @@ common_voice = common_voice.cast_column("audio", Audio(sampling_rate=SR))
 
 
 def _dur_ok(ex):
-    """Filtert Samples länger als MAX_SECONDS heraus."""
+    """Filtert Samples heraus, die länger als MAX_SECONDS sind."""
     return len(ex["audio"]["array"]) <= SR * MAX_SECONDS
 
 
 for split in ["train", "validation"]:
     common_voice[split] = common_voice[split].filter(_dur_ok)
 
-
 # =========================
 # 4) Vorverarbeitung
 # =========================
 def preprocess(batch):
     """
-    Wandelt Audio in Whisper-Features um und speichert den Text separat.
+    Wandelt Audio in Whisper-Features um und speichert den Text.
 
     Args:
-        batch (dict): Ein einzelnes Sample (Audio + Transkript)
+        batch (dict): Ein Sample (Audio + Transkript)
 
     Returns:
-        dict: Enthält input_features und labels_text
+        dict: input_features und labels_text
     """
     audio = batch["audio"]
     fe = processor.feature_extractor(
@@ -132,7 +130,7 @@ def preprocess(batch):
         padding=False
     )
     batch["input_features"] = fe.input_features[0]  # [80, T]
-    batch["labels_text"] = batch["sentence"]  # Original-Text
+    batch["labels_text"] = batch["sentence"]        # Original-Text
     return batch
 
 
@@ -142,7 +140,6 @@ for split in ["train", "validation"]:
         remove_columns=common_voice[split].column_names,
         num_proc=1
     )
-
 
 # =========================
 # 5) DataCollator
@@ -186,7 +183,7 @@ class DataCollatorWhisper:
         )
         labels = labels_batch["input_ids"].masked_fill(labels_batch.attention_mask.ne(1), -100)
 
-        # BOS entfernen falls vorhanden
+        # Entfernt BOS falls vorhanden
         bos_id = self.processor.tokenizer.bos_token_id
         if bos_id is not None and (labels[:, 0] == bos_id).all().item():
             labels = labels[:, 1:]
@@ -223,13 +220,13 @@ def compute_metrics(pred):
     label_str = processor.batch_decode(label_ids, skip_special_tokens=True)
     return {"wer": wer_metric.compute(predictions=pred_str, references=label_str)}
 
-
 # =========================
-# 11) Manuelle Evaluation
+# 7) Manuelle Evaluation
 # =========================
 def eval_streaming(model, dataset, processor, wer_metric, max_new_tokens=64):
     """
-    Führt eine manuelle Evaluation mit WER durch, um OOM zu vermeiden.
+    Führt eine manuelle Evaluation mit WER durch,
+    um Speicherprobleme (OOM) zu vermeiden.
     """
     model.eval()
     wers = []
@@ -257,11 +254,21 @@ def eval_streaming(model, dataset, processor, wer_metric, max_new_tokens=64):
             torch.mps.empty_cache()
     return {"wer": float(np.mean(wers))}
 
+# =========================
+# 8) Training-Argumente
+# =========================
+os.makedirs("../notebooks/logs", exist_ok=True)
 
-# =========================
-# 7) TrainingArgs
-# =========================
-os.makedirs("../notebooks /logs", exist_ok=True)
+# Training-Parameter:
+# - Effektive Batchgröße = 1 × 8 = 8 (durch Gradient Accumulation)
+# - Optimizer: Adafactor (speichersparend für Mac M3)
+# - Lernrate: 1.25e-5 mit 100 Warmup-Steps
+# - Evaluation & Checkpoint alle 50 Schritte
+# - Logging alle 10 Schritte → TensorBoard
+# - fp16 deaktiviert (MPS stabiler)
+# - max_steps = 1000 (Training wird nach 1000 Schritten gestoppt)
+# - weight_decay = 0.0 (kein L2-Regularisierung, reines Fine-Tuning)
+# - predict_with_generate = True (Text-Generierung für Evaluation)
 
 training_args = Seq2SeqTrainingArguments(
     output_dir=OUT_DIR,
@@ -273,7 +280,7 @@ training_args = Seq2SeqTrainingArguments(
     weight_decay=0.0,
     max_steps=1000,
     predict_with_generate=True,
-    logging_dir="../notebooks /logs",
+    logging_dir="../notebooks/logs",
     logging_steps=10,
     report_to="tensorboard",
     eval_strategy="steps",
@@ -286,22 +293,22 @@ training_args = Seq2SeqTrainingArguments(
 )
 
 # =========================
-# 8) Trainer
+# 9) Trainer
 # =========================
 trainer = Seq2SeqTrainer(
     model=model,
     args=training_args,
     train_dataset=common_voice["train"],
-    eval_dataset=common_voice["validation"],  # bắt buộc khi eval_strategy != "no"
+    eval_dataset=common_voice["validation"],  # nötig, da eval_strategy != "no"
     data_collator=data_collator,
     compute_metrics=compute_metrics,
 )
 
 # =========================
-# 9) Training oder Laden von Checkpoint
+# 10) Training oder Laden von Checkpoint
 # =========================
 if _has_full_processor(CKPT_PATH):
-    print(f"Checkpoint-final gefunden bei {CKPT_PATH}, überspringe Training.")
+    print(f"Checkpoint-final gefunden bei {CKPT_PATH}, Training wird übersprungen.")
 else:
     trainer.train()
     os.makedirs(CKPT_PATH, exist_ok=True)
@@ -313,7 +320,7 @@ else:
 # 11) Evaluation
 # =========================
 metrics = eval_streaming(model, common_voice["validation"], processor, wer_metric, max_new_tokens=64)
-print("Eval metrics:", metrics)
+print("Eval-Ergebnisse:", metrics)
 
 # =========================
 # 12) Schneller Test mit einem Sample
