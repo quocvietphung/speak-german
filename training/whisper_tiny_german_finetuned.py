@@ -198,7 +198,6 @@ data_collator = DataCollatorWhisper(processor=processor)
 # =========================
 wer_metric = evaluate.load("wer")
 
-
 def compute_metrics(pred):
     """
     Berechnet Word Error Rate (WER).
