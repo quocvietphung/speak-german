@@ -42,13 +42,22 @@ export default function RecordingCard({
   const handlePlayTarget = () => {
     if ("speechSynthesis" in window) {
       const utterance = new SpeechSynthesisUtterance(targetText);
-      utterance.lang = /[äöüÄÖÜß]/.test(targetText) ? "de-DE" : "en-US";
+      utterance.lang = "de-DE";
+
+      const voices = window.speechSynthesis.getVoices();
+      const germanVoice = voices.find((v) => v.lang.startsWith("de"));
+
+      if (germanVoice) {
+        utterance.voice = germanVoice;
+      }
+
       utterance.rate = 1;
       utterance.pitch = 1;
+
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utterance);
     } else {
-      console.warn("SpeechSynthesis is not supported in this browser.");
+      console.warn("SpeechSynthesis not supported.");
     }
   };
 

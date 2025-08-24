@@ -1,11 +1,18 @@
 "use client";
-import React, { useState, useRef } from "react";
-import { Box, Grid } from "@chakra-ui/react";
+
+import React, { useRef, useState } from "react";
+import { Box, Grid, Stack } from "@chakra-ui/react";
 import RecordingCard from "@/components/RecordingCard";
 import ScoreFeedbackCard from "@/components/ScoreFeedbackCard";
+import ModelSelect from "@/components/ModelSelect";
+
+type ModelValue = "base" | "fine_tuned";
 
 export default function Home() {
-  const [targetText, setTargetText] = useState("Klicke auf Next Sentence, um zu starten.");
+  const [targetText, setTargetText] = useState(
+    "Klicke auf Next Sentence, um zu starten."
+  );
+  const [modelId, setModelId] = useState<ModelValue>("base");
   const [recording, setRecording] = useState(false);
   const [loading, setLoading] = useState(false);
   const [score, setScore] = useState<number | null>(null);
@@ -23,6 +30,7 @@ export default function Home() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaStreamRef.current = stream;
+
         const mediaRecorder = new MediaRecorder(stream);
         mediaRecorderRef.current = mediaRecorder;
         audioChunksRef.current = [];
@@ -40,6 +48,7 @@ export default function Home() {
           const formData = new FormData();
           formData.append("audio", audioBlob, "recording.webm");
           formData.append("target_text", targetText);
+          formData.append("model_id", modelId);
 
           try {
             const res = await fetch("/api/evaluate", { method: "POST", body: formData });
@@ -47,7 +56,7 @@ export default function Home() {
 
             setScore(data.score ?? null);
             setMistakes(Array.isArray(data.mistakes) ? data.mistakes : []);
-            setTranscript(data.transcript ?? "");           // <- transcript cập nhật ở đây
+            setTranscript(data.transcript ?? "");
             setTip(data.tip ?? "");
             setTeacherFeedback(data.teacherFeedback ?? "");
           } catch (err) {
@@ -86,22 +95,26 @@ export default function Home() {
 
   return (
     <Box minH="100vh" p={8} bg="gray.50" display="flex" justifyContent="center">
-      <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} gap={8} maxW="6xl" w="100%">
-        <RecordingCard
-          targetText={targetText}
-          recording={recording}
-          onNextSentence={nextSentence}
-          onRecord={handleRecord}
-        />
-        <ScoreFeedbackCard
-          loading={loading}
-          score={score}
-          mistakes={mistakes}
-          tip={tip}
-          teacherFeedback={teacherFeedback}
-          transcript={transcript}
-        />
-      </Grid>
+      <Stack gap="6" maxW="6xl" w="100%">
+        <ModelSelect modelId={modelId} onChange={setModelId} />
+
+        <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} gap={8}>
+          <RecordingCard
+            targetText={targetText}
+            recording={recording}
+            onNextSentence={nextSentence}
+            onRecord={handleRecord}
+          />
+          <ScoreFeedbackCard
+            loading={loading}
+            score={score}
+            mistakes={mistakes}
+            tip={tip}
+            teacherFeedback={teacherFeedback}
+            transcript={transcript}
+          />
+        </Grid>
+      </Stack>
     </Box>
   );
 }
