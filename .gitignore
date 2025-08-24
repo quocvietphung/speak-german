@@ -9,6 +9,7 @@ __pycache__/
 
 .idea
 models
+notebooks/logs
 db
 data
 # Distribution / packaging
