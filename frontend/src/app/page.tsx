@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Box, Grid, Stack } from "@chakra-ui/react";
 import RecordingCard from "@/components/RecordingCard";
 import ScoreFeedbackCard from "@/components/ScoreFeedbackCard";
@@ -9,9 +9,7 @@ import ModelSelect from "@/components/ModelSelect";
 type ModelValue = "base" | "fine_tuned";
 
 export default function Home() {
-  const [targetText, setTargetText] = useState(
-    "Klicke auf Next Sentence, um zu starten."
-  );
+  const [targetText, setTargetText] = useState("… Lade Beispielsatz …");
   const [modelId, setModelId] = useState<ModelValue>("base");
   const [recording, setRecording] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -24,6 +22,10 @@ export default function Home() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+
+  useEffect(() => {
+    nextSentence();
+  }, []);
 
   const handleRecord = async () => {
     if (!recording) {
