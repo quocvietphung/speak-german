@@ -65,7 +65,8 @@ export default function RecordingCard({
 
   const handlePlayTarget = () => {
     if (!("speechSynthesis" in window)) return;
-    const u = new SpeechSynthesisUtterance(targetText);
+    const text = mode === "auto" ? targetText : customText;
+    const u = new SpeechSynthesisUtterance(text);
     u.lang = "de-DE";
     const voice = voices.find((v) => v.name === selectedVoice);
     if (voice) u.voice = voice;
@@ -88,22 +89,23 @@ export default function RecordingCard({
   return (
     <Card.Root p={6} rounded="2xl" shadow="xl">
       <Card.Header mb={4}>
-        <Heading size="md">🎤 Pronunciation Practice</Heading>
+        <Heading size="lg" textAlign="center">🎤 Pronunciation Practice</Heading>
       </Card.Header>
 
       <Card.Body>
         <VStack align="center" gap={6} w="full">
           <Box textAlign="center" w="full">
-            <Badge colorPalette="blue" rounded="full" px={3} py={1}>
+            <Badge colorPalette="blue" rounded="full" px={4} py={2} fontSize="sm">
               Target
             </Badge>
 
+            {/* Chế độ: Auto hoặc Custom */}
             <RadioGroup.Root
               mt={4}
               value={mode}
               onValueChange={({ value }) => setMode(value as "auto" | "custom")}
             >
-              <HStack gap={4} justify="center">
+              <HStack gap={6} justify="center">
                 <RadioGroup.Item value="auto">
                   <RadioGroup.ItemHiddenInput />
                   <RadioGroup.ItemIndicator />
@@ -117,64 +119,69 @@ export default function RecordingCard({
               </HStack>
             </RadioGroup.Root>
 
-            {mode === "auto" ? (
-              <>
-                <HStack justify="center" gap={2} mt={3} wrap="wrap">
-                  <Text fontSize="xl" fontWeight="semibold">{targetText}</Text>
-                  <IconButton
-                    aria-label="Play target audio"
-                    rounded="full"
-                    size="sm"
-                    colorPalette="teal"
-                    variant="subtle"
-                    onClick={handlePlayTarget}
-                  >
-                    <MdPlayCircle />
-                  </IconButton>
-                </HStack>
-              </>
-            ) : (
+            {/* Auto mode: hiển thị câu */}
+            {mode === "auto" && (
+              <HStack justify="center" gap={2} mt={4} wrap="wrap">
+                <Text fontSize="xl" fontWeight="semibold">
+                  {targetText}
+                </Text>
+                <IconButton
+                  aria-label="Play target audio"
+                  rounded="full"
+                  size="sm"
+                  colorPalette="teal"
+                  variant="subtle"
+                  onClick={handlePlayTarget}
+                >
+                  <MdPlayCircle />
+                </IconButton>
+              </HStack>
+            )}
+
+            {/* Custom mode: Textarea đẹp hơn */}
+            {mode === "custom" && (
               <>
                 <Textarea
-                  mt={3}
-                  rows={5}
+                  mt={4}
+                  rows={6}
                   resize="vertical"
-                  placeholder="Gib deinen eigenen Satz oder Absatz ein..."
+                  placeholder="✍️ Gib deinen eigenen Satz oder Absatz ein..."
                   value={customText}
                   onChange={handleCustomChange}
+                  fontSize="lg"
+                  p={4}
+                  rounded="xl"
+                  shadow="sm"
+                  borderColor="teal.400"
+                  _focus={{
+                    borderColor: "teal.600",
+                    shadow: "0 0 0 2px rgba(56,178,172,0.6)",
+                  }}
                 />
-                <HStack justify="space-between" mt={1} w="full">
-                  <Text textStyle="xs" color="fg.muted">
+                <HStack justify="space-between" mt={2} w="full">
+                  <Text fontSize="sm" color="fg.muted">
                     {customText.length.toLocaleString()} Zeichen
                   </Text>
-                    <Button
-                        size="sm"
-                        variant="subtle"
-                        colorPalette="teal"
-                        onClick={() => {
-                            if (!("speechSynthesis" in window)) return;
-                            const u = new SpeechSynthesisUtterance(customText || "");
-                            u.lang = "de-DE";
-                            const voice = voices.find((v) => v.name === selectedVoice);
-                            if (voice) u.voice = voice;
-                            u.rate = 1;
-                            u.pitch = 1;
-                            window.speechSynthesis.cancel();
-                            window.speechSynthesis.speak(u);
-                        }}
-                        disabled={!customText.trim()}
-                    >
-                        ▶️ Play Custom Text
-                    </Button>
+                  <Button
+                    size="md"
+                    variant="solid"
+                    colorPalette="teal"
+                    rounded="lg"
+                    shadow="md"
+                    onClick={handlePlayTarget}
+                    disabled={!customText.trim()}
+                  >
+                    ▶️ Play Custom Text
+                  </Button>
                 </HStack>
               </>
             )}
 
-            {/* Chọn giọng nói (Select v3) */}
+            {/* Select giọng đọc */}
             <Select.Root
               collection={voiceItems}
               size="sm"
-              mt={4}
+              mt={6}
               multiple={false}
               value={selectedVoice ? [selectedVoice] : []}
               onValueChange={({ value }) => setSelectedVoice(value[0] ?? "")}
@@ -245,7 +252,7 @@ export default function RecordingCard({
             </HStack>
 
             <Box aria-live="polite" aria-atomic="true" minH="1.25rem">
-              <Text color="fg.muted" textStyle="sm">
+              <Text color="fg.muted" fontSize="sm">
                 {recording ? "🎙️ Recording…" : "Tap mic to start"}
               </Text>
             </Box>
@@ -253,7 +260,6 @@ export default function RecordingCard({
 
           <Separator />
 
-          {/* Next Sentence CHỈ hiển thị ở Auto */}
           {mode === "auto" && (
             <Button
               onClick={onNextSentence}
