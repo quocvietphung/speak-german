@@ -9,9 +9,7 @@ import ModelSelect from "@/components/ModelSelect";
 type ModelValue = "base" | "fine_tuned";
 
 export default function Home() {
-  const [targetText, setTargetText] = useState(
-    "Klicke auf Next Sentence, um zu starten."
-  );
+  const [targetText, setTargetText] = useState("➡️ Klicke auf Next Sentence, um zu starten.");
   const [modelId, setModelId] = useState<ModelValue>("base");
   const [recording, setRecording] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -104,6 +102,7 @@ export default function Home() {
             recording={recording}
             onNextSentence={nextSentence}
             onRecord={handleRecord}
+            onTargetTextChange={setTargetText}
           />
           <ScoreFeedbackCard
             loading={loading}
