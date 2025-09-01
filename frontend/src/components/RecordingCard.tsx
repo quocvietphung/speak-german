@@ -49,6 +49,7 @@ export default function RecordingCard({
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>("");
   const [mode, setMode] = useState<"auto" | "custom">("auto");
+  const [customText, setCustomText] = useState<string>("");
 
   useEffect(() => {
     const loadVoices = () => {
@@ -74,10 +75,15 @@ export default function RecordingCard({
     window.speechSynthesis.speak(u);
   };
 
-  // collection cho Select (giọng)
   const voiceItems = createListCollection({
     items: voices.map((v) => ({ label: `${v.name} (${v.lang})`, value: v.name })),
   });
+
+  const handleCustomChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    setCustomText(val);
+    onTargetTextChange(val);
+  };
 
   return (
     <Card.Root p={6} rounded="2xl" shadow="xl">
@@ -87,7 +93,6 @@ export default function RecordingCard({
 
       <Card.Body>
         <VStack align="center" gap={6} w="full">
-          {/* Target */}
           <Box textAlign="center" w="full">
             <Badge colorPalette="blue" rounded="full" px={3} py={1}>
               Target
@@ -135,27 +140,37 @@ export default function RecordingCard({
                   rows={5}
                   resize="vertical"
                   placeholder="Gib deinen eigenen Satz oder Absatz ein..."
-                  value={targetText}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                    onTargetTextChange(e.target.value)
-                  }
+                  value={customText}
+                  onChange={handleCustomChange}
                 />
                 <HStack justify="space-between" mt={1} w="full">
                   <Text textStyle="xs" color="fg.muted">
-                    {targetText.length.toLocaleString()} Zeichen
+                    {customText.length.toLocaleString()} Zeichen
                   </Text>
-                  <Button
-                    size="sm"
-                    variant="subtle"
-                    colorPalette="teal"
-                    onClick={handlePlayTarget}
-                  >
-                    ▶️ Play Custom Text
-                  </Button>
+                    <Button
+                        size="sm"
+                        variant="subtle"
+                        colorPalette="teal"
+                        onClick={() => {
+                            if (!("speechSynthesis" in window)) return;
+                            const u = new SpeechSynthesisUtterance(customText || "");
+                            u.lang = "de-DE";
+                            const voice = voices.find((v) => v.name === selectedVoice);
+                            if (voice) u.voice = voice;
+                            u.rate = 1;
+                            u.pitch = 1;
+                            window.speechSynthesis.cancel();
+                            window.speechSynthesis.speak(u);
+                        }}
+                        disabled={!customText.trim()}
+                    >
+                        ▶️ Play Custom Text
+                    </Button>
                 </HStack>
               </>
             )}
 
+            {/* Chọn giọng nói (Select v3) */}
             <Select.Root
               collection={voiceItems}
               size="sm"
@@ -185,6 +200,7 @@ export default function RecordingCard({
             </Select.Root>
           </Box>
 
+          {/* Nút ghi âm */}
           <VStack gap={3}>
             <Box position="relative" w="96px" h="96px">
               {recording && (
@@ -237,6 +253,7 @@ export default function RecordingCard({
 
           <Separator />
 
+          {/* Next Sentence CHỈ hiển thị ở Auto */}
           {mode === "auto" && (
             <Button
               onClick={onNextSentence}
