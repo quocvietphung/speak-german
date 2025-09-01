@@ -15,16 +15,19 @@ import {
   IconButton,
   Portal,
   Select,
+  RadioGroup,
+  createListCollection,
+  Textarea,
 } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import { MdMic, MdStop, MdPlayCircle } from "react-icons/md";
-import { createListCollection } from "@chakra-ui/react";
 
 interface RecordingCardProps {
   targetText: string;
   recording: boolean;
   onNextSentence: () => void;
   onRecord: () => void;
+  onTargetTextChange: (val: string) => void;
 }
 
 const pulse = keyframes`
@@ -41,43 +44,39 @@ export default function RecordingCard({
   recording,
   onNextSentence,
   onRecord,
+  onTargetTextChange,
 }: RecordingCardProps) {
-
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState<string>("");
+  const [mode, setMode] = useState<"auto" | "custom">("auto");
 
   useEffect(() => {
     const loadVoices = () => {
       const v = window.speechSynthesis
         .getVoices()
-        .filter((x) => x.lang.startsWith("de"));
+        .filter((x) => x.lang?.toLowerCase().startsWith("de"));
       setVoices(v);
-      if (v.length && !selectedVoice) {
-        setSelectedVoice(v[0].name);
-      }
+      if (v.length && !selectedVoice) setSelectedVoice(v[0].name);
     };
     loadVoices();
     window.speechSynthesis.onvoiceschanged = loadVoices;
   }, [selectedVoice]);
 
   const handlePlayTarget = () => {
-    if ("speechSynthesis" in window) {
-      const utterance = new SpeechSynthesisUtterance(targetText);
-      utterance.lang = "de-DE";
-      const voice = voices.find((v) => v.name === selectedVoice);
-      if (voice) utterance.voice = voice;
-      utterance.rate = 1;
-      utterance.pitch = 1;
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utterance);
-    }
+    if (!("speechSynthesis" in window)) return;
+    const u = new SpeechSynthesisUtterance(targetText);
+    u.lang = "de-DE";
+    const voice = voices.find((v) => v.name === selectedVoice);
+    if (voice) u.voice = voice;
+    u.rate = 1;
+    u.pitch = 1;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
   };
 
+  // collection cho Select (giọng)
   const voiceItems = createListCollection({
-    items: voices.map((v) => ({
-      label: `${v.name} (${v.lang})`,
-      value: v.name,
-    })),
+    items: voices.map((v) => ({ label: `${v.name} (${v.lang})`, value: v.name })),
   });
 
   return (
@@ -85,27 +84,77 @@ export default function RecordingCard({
       <Card.Header mb={4}>
         <Heading size="md">🎤 Pronunciation Practice</Heading>
       </Card.Header>
+
       <Card.Body>
         <VStack align="center" gap={6} w="full">
+          {/* Target */}
           <Box textAlign="center" w="full">
             <Badge colorPalette="blue" rounded="full" px={3} py={1}>
               Target
             </Badge>
-            <HStack justify="center" gap={2} mt={3}>
-              <Text fontSize="xl" fontWeight="semibold">
-                {targetText}
-              </Text>
-              <IconButton
-                aria-label="Play target audio"
-                rounded="full"
-                size="sm"
-                colorPalette="teal"
-                variant="subtle"
-                onClick={handlePlayTarget}
-              >
-                <MdPlayCircle />
-              </IconButton>
-            </HStack>
+
+            <RadioGroup.Root
+              mt={4}
+              value={mode}
+              onValueChange={({ value }) => setMode(value as "auto" | "custom")}
+            >
+              <HStack gap={4} justify="center">
+                <RadioGroup.Item value="auto">
+                  <RadioGroup.ItemHiddenInput />
+                  <RadioGroup.ItemIndicator />
+                  <RadioGroup.ItemText>Auto (Prompt)</RadioGroup.ItemText>
+                </RadioGroup.Item>
+                <RadioGroup.Item value="custom">
+                  <RadioGroup.ItemHiddenInput />
+                  <RadioGroup.ItemIndicator />
+                  <RadioGroup.ItemText>Custom Input</RadioGroup.ItemText>
+                </RadioGroup.Item>
+              </HStack>
+            </RadioGroup.Root>
+
+            {mode === "auto" ? (
+              <>
+                <HStack justify="center" gap={2} mt={3} wrap="wrap">
+                  <Text fontSize="xl" fontWeight="semibold">{targetText}</Text>
+                  <IconButton
+                    aria-label="Play target audio"
+                    rounded="full"
+                    size="sm"
+                    colorPalette="teal"
+                    variant="subtle"
+                    onClick={handlePlayTarget}
+                  >
+                    <MdPlayCircle />
+                  </IconButton>
+                </HStack>
+              </>
+            ) : (
+              <>
+                <Textarea
+                  mt={3}
+                  rows={5}
+                  resize="vertical"
+                  placeholder="Gib deinen eigenen Satz oder Absatz ein..."
+                  value={targetText}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                    onTargetTextChange(e.target.value)
+                  }
+                />
+                <HStack justify="space-between" mt={1} w="full">
+                  <Text textStyle="xs" color="fg.muted">
+                    {targetText.length.toLocaleString()} Zeichen
+                  </Text>
+                  <Button
+                    size="sm"
+                    variant="subtle"
+                    colorPalette="teal"
+                    onClick={handlePlayTarget}
+                  >
+                    ▶️ Play Custom Text
+                  </Button>
+                </HStack>
+              </>
+            )}
 
             <Select.Root
               collection={voiceItems}
@@ -113,7 +162,7 @@ export default function RecordingCard({
               mt={4}
               multiple={false}
               value={selectedVoice ? [selectedVoice] : []}
-              onValueChange={(details) => setSelectedVoice(details.value[0])}
+              onValueChange={({ value }) => setSelectedVoice(value[0] ?? "")}
             >
               <Select.HiddenSelect />
               <Select.Control>
@@ -140,22 +189,8 @@ export default function RecordingCard({
             <Box position="relative" w="96px" h="96px">
               {recording && (
                 <>
-                  <Box
-                    position="absolute"
-                    inset="0"
-                    rounded="full"
-                    bg="pink.400"
-                    opacity={0.3}
-                    animation={`${pulse} 1.8s ease-out infinite`}
-                  />
-                  <Box
-                    position="absolute"
-                    inset="0"
-                    rounded="full"
-                    bg="purple.400"
-                    opacity={0.25}
-                    animation={`${pulse} 2s 0.5s ease-out infinite`}
-                  />
+                  <Box position="absolute" inset="0" rounded="full" bg="pink.400" opacity={0.3} animation={`${pulse} 1.8s ease-out infinite`} />
+                  <Box position="absolute" inset="0" rounded="full" bg="purple.400" opacity={0.25} animation={`${pulse} 2s 0.5s ease-out infinite`} />
                 </>
               )}
               <Button
@@ -180,6 +215,7 @@ export default function RecordingCard({
                 <span>{recording ? "Recording…" : "Start recording"}</span>
               </VisuallyHidden>
             </Box>
+
             <HStack gap={2} h="30px" align="end">
               {[bounce1, bounce2, bounce3].map((anim, i) => (
                 <Box
@@ -187,14 +223,11 @@ export default function RecordingCard({
                   w="10px"
                   rounded="sm"
                   bg={recording ? "purple.400" : "gray.300"}
-                  animation={
-                    recording
-                      ? `${anim} 1s ease-in-out ${i * 0.1}s infinite`
-                      : undefined
-                  }
+                  animation={recording ? `${anim} 1s ease-in-out ${i * 0.1}s infinite` : undefined}
                 />
               ))}
             </HStack>
+
             <Box aria-live="polite" aria-atomic="true" minH="1.25rem">
               <Text color="fg.muted" textStyle="sm">
                 {recording ? "🎙️ Recording…" : "Tap mic to start"}
@@ -204,18 +237,20 @@ export default function RecordingCard({
 
           <Separator />
 
-          <Button
-            onClick={onNextSentence}
-            colorPalette="teal"
-            variant="solid"
-            size="md"
-            w="full"
-            rounded="xl"
-            shadow="md"
-            disabled={recording}
-          >
-            ➡️ Next Sentence
-          </Button>
+          {mode === "auto" && (
+            <Button
+              onClick={onNextSentence}
+              colorPalette="teal"
+              variant="solid"
+              size="md"
+              w="full"
+              rounded="xl"
+              shadow="md"
+              disabled={recording}
+            >
+              ➡️ Next Sentence
+            </Button>
+          )}
         </VStack>
       </Card.Body>
     </Card.Root>

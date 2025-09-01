@@ -101,12 +101,13 @@ export default function Home() {
         <ModelSelect modelId={modelId} onChange={setModelId} />
 
         <Grid templateColumns={{ base: "1fr", md: "repeat(2, 1fr)" }} gap={8}>
-          <RecordingCard
-            targetText={targetText}
-            recording={recording}
-            onNextSentence={nextSentence}
-            onRecord={handleRecord}
-          />
+            <RecordingCard
+                targetText={targetText}
+                recording={recording}
+                onNextSentence={nextSentence}
+                onRecord={handleRecord}
+                onTargetTextChange={setTargetText}   // ✅ truyền callback cập nhật state
+            />
           <ScoreFeedbackCard
             loading={loading}
             score={score}
