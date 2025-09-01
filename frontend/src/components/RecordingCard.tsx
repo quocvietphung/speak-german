@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   VStack,
@@ -13,9 +13,12 @@ import {
   VisuallyHidden,
   Separator,
   IconButton,
+  Portal,
+  Select,
 } from "@chakra-ui/react";
 import { keyframes } from "@emotion/react";
 import { MdMic, MdStop, MdPlayCircle } from "react-icons/md";
+import { createListCollection } from "@chakra-ui/react";
 
 interface RecordingCardProps {
   targetText: string;
@@ -39,58 +42,56 @@ export default function RecordingCard({
   onNextSentence,
   onRecord,
 }: RecordingCardProps) {
+
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<string>("");
+
+  useEffect(() => {
+    const loadVoices = () => {
+      const v = window.speechSynthesis
+        .getVoices()
+        .filter((x) => x.lang.startsWith("de"));
+      setVoices(v);
+      if (v.length && !selectedVoice) {
+        setSelectedVoice(v[0].name);
+      }
+    };
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }, [selectedVoice]);
+
   const handlePlayTarget = () => {
     if ("speechSynthesis" in window) {
       const utterance = new SpeechSynthesisUtterance(targetText);
       utterance.lang = "de-DE";
-
-      const voices = window.speechSynthesis.getVoices();
-      const germanVoice = voices.find((v) => v.lang.startsWith("de"));
-
-      if (germanVoice) {
-        utterance.voice = germanVoice;
-      }
-
+      const voice = voices.find((v) => v.name === selectedVoice);
+      if (voice) utterance.voice = voice;
       utterance.rate = 1;
       utterance.pitch = 1;
-
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utterance);
-    } else {
-      console.warn("SpeechSynthesis not supported.");
     }
   };
 
-  return (
-    <Card.Root
-      size="lg"
-      p={6}
-      rounded="2xl"
-      borderWidth="1px"
-      shadow="xl"
-      bg="white"
-      _dark={{
-        bg: "gray.800",
-        borderColor: "whiteAlpha.200",
-      }}
-    >
-      <Card.Header mb={4}>
-        <VStack align="start" gap={1}>
-          <Heading size="md">🎤 Pronunciation Practice</Heading>
-          <Text color="fg.muted" textStyle="sm">
-            Record • Compare • Improve
-          </Text>
-        </VStack>
-      </Card.Header>
+  const voiceItems = createListCollection({
+    items: voices.map((v) => ({
+      label: `${v.name} (${v.lang})`,
+      value: v.name,
+    })),
+  });
 
+  return (
+    <Card.Root p={6} rounded="2xl" shadow="xl">
+      <Card.Header mb={4}>
+        <Heading size="md">🎤 Pronunciation Practice</Heading>
+      </Card.Header>
       <Card.Body>
         <VStack align="center" gap={6} w="full">
           <Box textAlign="center" w="full">
             <Badge colorPalette="blue" rounded="full" px={3} py={1}>
               Target
             </Badge>
-
-            <HStack justify="center" gap={2} mt={3} wrap="wrap">
+            <HStack justify="center" gap={2} mt={3}>
               <Text fontSize="xl" fontWeight="semibold">
                 {targetText}
               </Text>
@@ -105,6 +106,34 @@ export default function RecordingCard({
                 <MdPlayCircle />
               </IconButton>
             </HStack>
+
+            <Select.Root
+              collection={voiceItems}
+              size="sm"
+              mt={4}
+              multiple={false}
+              value={selectedVoice ? [selectedVoice] : []}
+              onValueChange={(details) => setSelectedVoice(details.value[0])}
+            >
+              <Select.HiddenSelect />
+              <Select.Control>
+                <Select.Trigger>
+                  <Select.ValueText placeholder="Choose German voice" />
+                </Select.Trigger>
+              </Select.Control>
+              <Portal>
+                <Select.Positioner>
+                  <Select.Content>
+                    {voiceItems.items.map((item) => (
+                      <Select.Item key={item.value} item={item}>
+                        {item.label}
+                        <Select.ItemIndicator />
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Positioner>
+              </Portal>
+            </Select.Root>
           </Box>
 
           <VStack gap={3}>
@@ -129,7 +158,6 @@ export default function RecordingCard({
                   />
                 </>
               )}
-
               <Button
                 onClick={onRecord}
                 aria-pressed={recording}
@@ -148,12 +176,10 @@ export default function RecordingCard({
               >
                 {recording ? <MdStop /> : <MdMic />}
               </Button>
-
               <VisuallyHidden>
                 <span>{recording ? "Recording…" : "Start recording"}</span>
               </VisuallyHidden>
             </Box>
-
             <HStack gap={2} h="30px" align="end">
               {[bounce1, bounce2, bounce3].map((anim, i) => (
                 <Box
@@ -169,7 +195,6 @@ export default function RecordingCard({
                 />
               ))}
             </HStack>
-
             <Box aria-live="polite" aria-atomic="true" minH="1.25rem">
               <Text color="fg.muted" textStyle="sm">
                 {recording ? "🎙️ Recording…" : "Tap mic to start"}
