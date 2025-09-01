@@ -51,6 +51,7 @@ export default function RecordingCard({
   const [mode, setMode] = useState<"auto" | "custom">("auto");
   const [customText, setCustomText] = useState<string>("");
 
+  // Load available voices (German only)
   useEffect(() => {
     const loadVoices = () => {
       const v = window.speechSynthesis
@@ -63,6 +64,7 @@ export default function RecordingCard({
     window.speechSynthesis.onvoiceschanged = loadVoices;
   }, [selectedVoice]);
 
+  // Play target text (auto or custom)
   const handlePlayTarget = () => {
     if (!("speechSynthesis" in window)) return;
     const text = mode === "auto" ? targetText : customText;
@@ -76,10 +78,12 @@ export default function RecordingCard({
     window.speechSynthesis.speak(u);
   };
 
+  // Voice options for Select component
   const voiceItems = createListCollection({
     items: voices.map((v) => ({ label: `${v.name} (${v.lang})`, value: v.name })),
   });
 
+  // Handle text change in custom input
   const handleCustomChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setCustomText(val);
@@ -99,7 +103,7 @@ export default function RecordingCard({
               Target
             </Badge>
 
-            {/* Chế độ: Auto hoặc Custom */}
+            {/* Mode selector: Auto or Custom */}
             <RadioGroup.Root
               mt={4}
               value={mode}
@@ -119,7 +123,7 @@ export default function RecordingCard({
               </HStack>
             </RadioGroup.Root>
 
-            {/* Auto mode: hiển thị câu */}
+            {/* Auto mode: show text from API */}
             {mode === "auto" && (
               <HStack justify="center" gap={2} mt={4} wrap="wrap">
                 <Text fontSize="xl" fontWeight="semibold">
@@ -138,14 +142,14 @@ export default function RecordingCard({
               </HStack>
             )}
 
-            {/* Custom mode: Textarea đẹp hơn */}
+            {/* Custom mode: allow user input */}
             {mode === "custom" && (
               <>
                 <Textarea
                   mt={4}
                   rows={6}
                   resize="vertical"
-                  placeholder="✍️ Gib deinen eigenen Satz oder Absatz ein..."
+                  placeholder="✍️ Enter your own sentence or paragraph..."
                   value={customText}
                   onChange={handleCustomChange}
                   fontSize="lg"
@@ -160,7 +164,7 @@ export default function RecordingCard({
                 />
                 <HStack justify="space-between" mt={2} w="full">
                   <Text fontSize="sm" color="fg.muted">
-                    {customText.length.toLocaleString()} Zeichen
+                    {customText.length.toLocaleString()} characters
                   </Text>
                   <Button
                     size="md"
@@ -177,7 +181,7 @@ export default function RecordingCard({
               </>
             )}
 
-            {/* Select giọng đọc */}
+            {/* Select German voice */}
             <Select.Root
               collection={voiceItems}
               size="sm"
@@ -207,7 +211,7 @@ export default function RecordingCard({
             </Select.Root>
           </Box>
 
-          {/* Nút ghi âm */}
+          {/* Recording button */}
           <VStack gap={3}>
             <Box position="relative" w="96px" h="96px">
               {recording && (
@@ -239,6 +243,7 @@ export default function RecordingCard({
               </VisuallyHidden>
             </Box>
 
+            {/* Recording animation bars */}
             <HStack gap={2} h="30px" align="end">
               {[bounce1, bounce2, bounce3].map((anim, i) => (
                 <Box
@@ -251,6 +256,7 @@ export default function RecordingCard({
               ))}
             </HStack>
 
+            {/* Recording status text */}
             <Box aria-live="polite" aria-atomic="true" minH="1.25rem">
               <Text color="fg.muted" fontSize="sm">
                 {recording ? "🎙️ Recording…" : "Tap mic to start"}
@@ -260,6 +266,7 @@ export default function RecordingCard({
 
           <Separator />
 
+          {/* Next Sentence button only in Auto mode */}
           {mode === "auto" && (
             <Button
               onClick={onNextSentence}
